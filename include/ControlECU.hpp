@@ -5,15 +5,21 @@
 
 #include <vector>
 
-class ControlECU{
-    private:
-        std::vector<Sensor>& sensors;
-        MachineState currentState;
-    public:
-        ControlECU(std::vector<Sensor>& sensors);
-    private:
-        ECUState checkSignalState();
-        ECUState checkMissing();
-        ECUState checkCoherence();
-};
+class ControlECU
+{
+private:
+    std::vector<Sensor> &sensors;
+    ECUState currentState;
+    ECUState signalState;
+    ECUState missingSignalsState;
+    ECUState coherenceState;
 
+public:
+    ControlECU(std::vector<Sensor> &sensors);
+    void runControlCycle();
+
+private:
+    ECUState checkSignalState();
+    ECUState checkMissing();
+    ECUState checkCoherence();
+};

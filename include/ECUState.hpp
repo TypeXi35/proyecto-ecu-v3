@@ -3,6 +3,6 @@
 enum class ECUState {
     INIT,
     OPERATIONAL,
-    DEGREDAD,
+    DEGRADED,
     SAFE_STATE
 };
