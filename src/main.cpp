@@ -1,15 +1,15 @@
-
+#include <ControlECU.hpp>
 
 int main(){
     VehicleSimulator Vehicle;
     GatewayECU Gateway(Vehicle.exposeSignals()); // Señales simples
-    Gateway.processSignals()
-    ControlECU Control(Gateway.exposeSensors());
+    Gateway.processSignals();
+    ControlECU control(Gateway.exposeSensors());
     Dashboard(Gateway.exposeSensors()); 
     //INIT
-    Control.Run();
-    Dashboard.Draw(Control.exposeData());
-    if(Control.exposeState() == SAFE_STATE){
+    control.Run();
+    Dashboard.Draw(control.exposeData());
+    if(control.exposeState() == SAFE_STATE){
         return 1;
     }
     else{
@@ -17,7 +17,7 @@ int main(){
     while(currentState != SAFE_STATE){
         GatewayECU.processSignals(Vehicle.exposeSignals());
         ControlECU.updateSensors(GatewayECU.exposeSensors());
-        Control.Run();
+        control.Run();
         Dashboard.Draw();
     }
     return 1;
