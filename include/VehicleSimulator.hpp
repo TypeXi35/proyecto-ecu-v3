@@ -1,12 +1,14 @@
 #pragma once
 
+#include "SignalTypes.hpp"
+
 #include <random>
 #include <vector>
 #include <algorithm>
 
 struct SignalVehicle
 {
-    std::string name;
+    SignalId signalId;
     double value;
 };
 

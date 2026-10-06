@@ -54,12 +54,12 @@ std::vector<SignalVehicle> VehicleSimulator::exposeSignals() const
 {
     std::vector<SignalVehicle> signals;
 
-    signals.push_back({"Throttle", throttle});
-    signals.push_back({"Speed", speed});
-    signals.push_back({"RPM", rpm});
-    signals.push_back({"Temperature", temperature});
-    signals.push_back({"Battery Voltage", batteryVoltage});
-    signals.push_back({"Oil Pressure", oilPressure});
+    signals.push_back({SignalId::THROTTLE, throttle});
+    signals.push_back({SignalId::SPEED, speed});
+    signals.push_back({SignalId::RPM, rpm});
+    signals.push_back({SignalId::TEMPERATURE, temperature});
+    signals.push_back({SignalId::BATTERY_VOLTAGE, batteryVoltage});
+    signals.push_back({SignalId::OIL_PRESSURE, oilPressure});
 
     return signals;
 }
