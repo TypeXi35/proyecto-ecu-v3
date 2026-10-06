@@ -5,8 +5,8 @@
 #include <vector>
 #include <unordered_map>
 
-constexpr double SPEED_PER_RPM = 0.04;
-constexpr double SPEED_TOLERANCE = 15.0;
+constexpr int SPEED_PER_RPM = 0.04;
+constexpr int SPEED_TOLERANCE = 15.0;
 
 class ControlECU{
     private:
@@ -55,7 +55,7 @@ class ControlECU{
             const Sensor* voltage = sensorMap.at(SignalId::BATTERY_VOLTAGE);
             const Sensor* rpm = sensorMap.at(SignalId::RPM);
             const Sensor* speed = sensorMap.at(SignalId::SPEED);
-            double expectedSpeed = rpm->getValue() * SPEED_PER_RPM;
+            int expectedSpeed = rpm->getValue() * SPEED_PER_RPM;
             if(temperature->getState() != SignalState::VALID && temperature->getState() != SignalState::NOT_AVAILABLE){
                 return true;
             }
@@ -63,27 +63,17 @@ class ControlECU{
             if(temperature->getMissedCycles() >= 3 || voltage->getMissedCycles() >= 3){
                 return true;
             }
-            bool coherent = std::abs(speed - expectedSpeed) <= SPEED_TOLERANCE;
+            bool coherent = std::abs(speed->getValue() - expectedSpeed) <= SPEED_TOLERANCE;
             if(coherent){
                 return true;
             }
         }
         bool isDegraded(){
-
+            
         }
-        bool areCriticalSignsValid(){
-
-        };
-        bool areCriticalSignsMissing(){
-
-        };
-        bool areCriticalSignsMissing(){
-
+        const std::unordered_map<SignalId, const Sensor*>& getSensorMap(){
+            return sensorMap;
         }
-        ECUState checkCoherence()
-        {
-
-        };
         void stateTransition(ECUState newState){
             currentState = newState;
         }
