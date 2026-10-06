@@ -1,6 +1,7 @@
 #include "GatewayECU.hpp"
 
 #include <algorithm>
+#include <stdexcept>
 
 #include "SignalLimits.hpp"
 
@@ -31,4 +32,21 @@ void GatewayECU::processCycle(const std::vector<SignalReading>& readings) {
 
 const std::vector<Sensor>& GatewayECU::getSensors() const {
     return sensors;
+}
+
+const Sensor& GatewayECU::findSensor(SignalId id) const {
+    const auto found = std::find_if(sensors.begin(), sensors.end(),
+                                    [id](const Sensor& sensor) { return sensor.getId() == id; });
+    if (found == sensors.end()) {
+        throw std::out_of_range("GatewayECU::findSensor: la Gateway no tiene un sensor con ese ID");
+    }
+    return *found;
+}
+
+std::size_t GatewayECU::countInvalidSignals() const {
+    const auto invalid = std::count_if(sensors.begin(), sensors.end(), [](const Sensor& sensor) {
+        return sensor.getState() != SignalState::VALID;
+    });
+   
+    return static_cast<std::size_t>(invalid);
 }
