@@ -48,7 +48,7 @@ Muestra en la terminal, en cada ciclo, un tablero de instrumentos con el estado 
 | Para qué | Cómo |
 | --- | --- |
 | Crear el Dashboard (dibuja en la pantalla) | `Dashboard dashboard;` |
-| Dibujar un cuadro | `dashboard.render(gateway, control.getState());` |
+| Dibujar un cuadro | `dashboard.render(gateway, control.getControlData().currentState);` |
 
 - Cada cuadro se escribe encima del anterior, sin parpadeo.
 - Se dibuja desde el arranque: en el ciclo 0, antes del primer dato, todas las señales aparecen como NO DISPONIBLE y la ECU de Control en INIT.
