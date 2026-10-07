@@ -29,6 +29,7 @@ La Gateway crea sus propios sensores y es dueña de ellos (`std::vector<Sensor>`
 | Leer todos los sensores | `gateway.getSensors()` devuelve `const std::vector<Sensor>&` |
 | Buscar una señal | `gateway.findSensor(SignalId::TEMPERATURE)` devuelve `const Sensor&`; lanza `std::out_of_range` si el ID no existe |
 | Contar las señales inválidas | `gateway.countInvalidSignals()` cuenta las que no están en `VALID` |
+| Saber cuántos ciclos lleva | `gateway.getCycleCount()`; vale 0 antes del primer ciclo |
 
 Los sensores se crean una sola vez y nunca se agregan ni se quitan, así que las referencias a ellos siguen válidas mientras exista la Gateway y muestran cada ciclo nuevo.
 
@@ -42,27 +43,83 @@ Los sensores se crean una sola vez y nunca se agregan ni se quitan, así que las
 
 ### Dashboard
 
-> Pendiente.
+Muestra en la terminal, en cada ciclo, un tablero de instrumentos con el estado de las señales que entrega la Gateway y, aparte, el estado de la ECU de Control. Solo muestra: no decide ningún estado ni deduce el de la Control a partir de las señales.
+
+| Para qué | Cómo |
+| --- | --- |
+| Crear el Dashboard (dibuja en la pantalla) | `Dashboard dashboard;` |
+| Dibujar un cuadro | `dashboard.render(gateway, control.getState());` |
+
+- Cada cuadro se escribe encima del anterior, sin parpadeo.
+- Se dibuja desde el arranque: en el ciclo 0, antes del primer dato, todas las señales aparecen como NO DISPONIBLE y la ECU de Control en INIT.
+- El número de ciclo lo da la Gateway con `getCycleCount()`.
+- Una señal NO DISPONIBLE muestra `---`, porque al arrancar el 0.0 no es una lectura y el último valor recibido ya no es confiable. Una señal FUERA DE RANGO muestra el valor que llegó, completo aunque no quepa en su columna.
+- Los textos van en español sin acentos y la temperatura usa `C` en lugar de `°C`.
+
+Ejemplo del ciclo 8 del guion de pruebas, con la ECU de Control en DEGRADED (aquí sin colores):
+
+```text
+╭─ ECU GATEWAY / CONTROL ──────────────────────────────────────────── CICLO 8 ─╮
+│                                                                              │
+│           ⣀⣤⠤⠒⠒⠒⠒⠢⢤⣄⡀                                   ⣀⡤⠤⠒⠒⡖⠒⠢⠤⣄⡀          │
+│        ⢀⡴⠚⠁⠘      ⠘ ⠙⠲⣄                              ⢀⡴⠚⠙⠄   ⠁   ⠜⠙⠲⣄        │
+│       ⣰⠋   100  150   ⠈⢳⡀                           ⣰⢏  ⡀ 3  4 5    ⢈⢷⡀      │
+│      ⣰⠧⠄               ⠤⢷⡀       ▲ ATENCION        ⣰⠃ ⠁ 2⢦⡀      6  ⠁ ⢳⡀     │
+│      ⡇  50         200   ⡇                         ⣇⣀     ⠙⢦⡀        ⢀⣀⡇     │
+│     ⢸⠁      ⢀⣀⠤⠄         ⢹         2 de 6         ⢸⠁   1    ⠙⠆    7    ⢹     │
+│     ⠈⡇  ⡠0⠒⠋⠉      250   ⡏       invalidas        ⠈⡇   0          8    ⡏     │
+│      ⠙⠉       -5       ⠈⠙⠁                         ⠙⠉      2330      ⠈⠙⠁     │
+│              km/h                                           rpm              │
+│           VELOCIDAD                                     RPM x1000            │
+│         FUERA DE RANGO                                    VALIDA             │
+│                                                                              │
+│ TEMPERATURA   ███████████████░░░░░░░    89.6 C   VALIDA                      │
+│ ACELERADOR    ███████▋░░░░░░░░░░░░░░    35.0 %   VALIDA                      │
+│ BATERIA       ░░░░░░░░░░░░░░░░░░░░░░     --- V   NO DISPONIBLE · 5 ciclos    │
+│ ACEITE        █████░░░░░░░░░░░░░░░░░     2.3 bar VALIDA · 1 ciclo            │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                  ECU DE CONTROL   DEGRADED   │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+- **Relojes:** velocidad y RPM tienen aguja, y su escala sale del rango válido de cada señal. Fuera de rango, la aguja se queda en el tope; sin dato o con NaN no hay aguja y el arco se apaga.
+- **Aviso central:** cuántas señales están inválidas.
+- **Barras:** temperatura, acelerador, batería y presión de aceite, con su valor, su estado y los ciclos sin dato cuando hay alguno. La barra marca la posición dentro del rango válido.
+- **ECU de Control:** etiqueta con fondo de color, separada de las señales.
+
+| Color | Señal (aguja, valor y estado) | Aviso central | ECU de Control |
+| --- | --- | --- | --- |
+| Verde | VALIDA | Ninguna inválida | OPERATIONAL |
+| Ámbar | NO DISPONIBLE | Algunas inválidas | DEGRADED |
+| Rojo | FUERA DE RANGO | Todas inválidas | SAFE_STATE |
+| Gris | | | INIT |
+
+Requiere una terminal con UTF-8, de al menos 80 × 24 y con una fuente que tenga caracteres braille, como DejaVu Sans Mono.
 
 ## Estructura de archivos
 
-Archivos de la ECU Gateway:
+Archivos de la ECU Gateway y del Dashboard:
 
 ```text
 include/
 ├── SignalTypes.hpp     SignalId, SignalState y SignalReading, compartidos por todos los componentes
 ├── SignalLimits.hpp    Rangos físicos de cada señal y MAX_MISSED_CYCLES
 ├── Sensor.hpp          Valor, rango, ciclos sin dato y estado de una señal
-└── GatewayECU.hpp      ECU Gateway
+├── GatewayECU.hpp      ECU Gateway
+├── Dashboard.hpp       Dashboard
+└── BrailleCanvas.hpp   Lienzo de puntos braille para dibujar los relojes
 src/
 ├── Sensor.cpp
-└── GatewayECU.cpp
+├── GatewayECU.cpp
+├── Dashboard.cpp
+└── BrailleCanvas.cpp
 tests/
 ├── gateway_tests.cpp   Pruebas de la Gateway
+├── dashboard_tests.cpp Pruebas del Dashboard
 └── DriveScenario.hpp   Guion de 15 ciclos que sustituye al simulador en las pruebas
 ```
 
-> Pendiente: archivos del simulador, la ECU de Control, el Dashboard, `main.cpp` y `CMakeLists.txt`.
+> Pendiente: archivos del simulador, la ECU de Control, `main.cpp` y `CMakeLists.txt`.
 
 ## Señales implementadas
 
@@ -148,7 +205,17 @@ En las pruebas también se usan `std::optional` (una señal que no llegó en el 
 
 ### Dashboard
 
-> Pendiente.
+| Elemento | Dónde | Para qué |
+| --- | --- | --- |
+| `std::vector` | `Dashboard.cpp`, `BrailleCanvas` | Lista de barras, celdas de los relojes y puntos del lienzo |
+| `std::array` | `BrailleCanvas.cpp` | Bit de cada punto dentro de su celda braille |
+| `std::for_each` | `Dashboard::render` | Dibujar una barra por señal y escribir cada fila del cuadro |
+| `std::count_if` | `displayWidth` en `Dashboard.cpp` | Contar columnas y no bytes en el texto con caracteres de cuadro y braille |
+| `std::clamp` | `scaleFraction` en `Dashboard.cpp` | Dejar la aguja en el tope cuando el valor está fuera de rango |
+| `std::optional` | `scaleFraction` en `Dashboard.cpp` | Indicar que no hay aguja que dibujar (sin dato o NaN) |
+| `std::ostringstream`, `std::fixed`, `std::setprecision` | Formato de valores | Valores con decimales fijos |
+
+Cada señal se localiza con `GatewayECU::findSensor` (`std::find_if`). En las pruebas también se usan `std::find_if`, `std::all_of`, `std::none_of`, `std::count`, `std::ostringstream` y `std::istringstream`.
 
 ## Instrucciones de compilación
 
@@ -166,4 +233,12 @@ En las pruebas también se usan `std::optional` (una señal que no llegó en el 
 
 Imprime `[OK]` o `[FALLO]` por cada comprobación y termina con código 0 solo si todas pasan. Incluye un recorrido de 15 ciclos (`tests/DriveScenario.hpp`) con valores fuera de rango, señales que dejan de llegar y un apagón total.
 
-> Pendiente: depende de que `CMakeLists.txt` genere el ejecutable `gateway_tests`.
+### Pruebas del Dashboard
+
+```bash
+./build/dashboard_tests
+```
+
+Igual que las de la Gateway, imprime `[OK]` o `[FALLO]` y termina con código 0 solo si todas pasan. Compara cuadros completos con el texto esperado (arranque, fallas y apagón), revisa que en cada ciclo del guion el cuadro mida 21 líneas de 80 columnas, el color de las agujas, del aviso y de la etiqueta de la ECU de Control, valores fuera de lo común y el lienzo braille.
+
+> Pendiente: depende de que `CMakeLists.txt` genere los ejecutables `gateway_tests` y `dashboard_tests`.
