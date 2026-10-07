@@ -1,6 +1,7 @@
-#include <Sensor.hpp>
-#include <ECUState.hpp>
-#include <SignalTypes.hpp>
+#include "ControlData.hpp"
+#include "Sensor.hpp"
+#include "ECUState.hpp"
+#include "SignalTypes.hpp"
 
 #include <vector>
 #include <unordered_map>
@@ -12,15 +13,24 @@ class ControlECU{
     private:
         ECUState currentState;
         ECUState proposedTransition;
+        ECUData data;
         std::unordered_map<SignalId,const Sensor*> sensorMap;
     public:
-        ControlECU(std::vector<Sensor>& gateway_sensors): 
-            currentState(ECUState::INIT)
-        {   
-            for(Sensor& sensor : gateway_sensors){
-                sensorMap.emplace(sensor.getId(), &sensor);
+        ControlECU(const std::vector<Sensor>& gateway_sensors): 
+            currentState(ECUState::INIT),
+            data{
+                {
+                    getSensor(gateway_sensors, SignalId::SPEED),
+                    getSensor(gateway_sensors, SignalId::RPM),
+                    getSensor(gateway_sensors, SignalId::TEMPERATURE),
+                    getSensor(gateway_sensors, SignalId::BATTERY_VOLTAGE),
+                    getSensor(gateway_sensors, SignalId::THROTTLE),
+                    getSensor(gateway_sensors, SignalId::OIL_PRESSURE)
+                },
+                currentState
             }
-        };
+        {
+        }
         void runControlCycle(){
             switch(currentState){
                 case ECUState::INIT:
@@ -51,31 +61,38 @@ class ControlECU{
     private:
         Sensor& getSensorByName(const std::string& name);
         bool hasCriticalFault(){
-            const Sensor* temperature = sensorMap.at(SignalId::TEMPERATURE);
-            const Sensor* voltage = sensorMap.at(SignalId::BATTERY_VOLTAGE);
-            const Sensor* rpm = sensorMap.at(SignalId::RPM);
-            const Sensor* speed = sensorMap.at(SignalId::SPEED);
-            int expectedSpeed = rpm->getValue() * SPEED_PER_RPM;
-            if(temperature->getState() != SignalState::VALID && temperature->getState() != SignalState::NOT_AVAILABLE){
+            int expectedSpeed = data.sensors.rpm.getValue() * SPEED_PER_RPM;
+            if(data.sensors.temperature.getState() != SignalState::VALID && data.sensors.temperature.getState() != SignalState::NOT_AVAILABLE){
                 return true;
             }
 
-            if(temperature->getMissedCycles() >= 3 || voltage->getMissedCycles() >= 3){
+            if(data.sensors.temperature.getMissedCycles() >= 3 || data.sensors.batteryVoltage.getMissedCycles() >= 3){
                 return true;
             }
-            bool coherent = std::abs(speed->getValue() - expectedSpeed) <= SPEED_TOLERANCE;
-            if(coherent){
+            bool coherent = std::abs(data.sensors.speed.getValue() - expectedSpeed) <= SPEED_TOLERANCE;
+            if(!coherent){
                 return true;
             }
+            return false;
         }
         bool isDegraded(){
             
         }
-        const std::unordered_map<SignalId, const Sensor*>& getSensorMap(){
-            return sensorMap;
-        }
         void stateTransition(ECUState newState){
             currentState = newState;
         }
+        ECUData getControlData(){
+            return data;
+        }
+        static const Sensor& getSensor(
+            const std::vector<Sensor>& sensors,
+            SignalId id)
+            {
+                for (const Sensor& sensor : sensors) {
+                    if (sensor.getId() == id) {
+                        return sensor;
+                    }
+                }
+            }
 };
 
