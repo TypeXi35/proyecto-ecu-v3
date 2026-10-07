@@ -48,7 +48,7 @@ Muestra en la terminal, en cada ciclo, un tablero de instrumentos con el estado 
 | Para qué | Cómo |
 | --- | --- |
 | Crear el Dashboard (dibuja en la pantalla) | `Dashboard dashboard;` |
-| Dibujar un cuadro | `dashboard.render(gateway, control.getState());` |
+| Dibujar un cuadro | `dashboard.render(gateway, control.getControlData().currentState);` |
 
 - Cada cuadro se escribe encima del anterior, sin parpadeo.
 - Se dibuja desde el arranque: en el ciclo 0, antes del primer dato, todas las señales aparecen como NO DISPONIBLE y la ECU de Control en INIT.
@@ -240,5 +240,3 @@ Imprime `[OK]` o `[FALLO]` por cada comprobación y termina con código 0 solo s
 ```
 
 Igual que las de la Gateway, imprime `[OK]` o `[FALLO]` y termina con código 0 solo si todas pasan. Compara cuadros completos con el texto esperado (arranque, fallas y apagón), revisa que en cada ciclo del guion el cuadro mida 21 líneas de 80 columnas, el color de las agujas, del aviso y de la etiqueta de la ECU de Control, valores fuera de lo común y el lienzo braille.
-
-> Pendiente: depende de que `CMakeLists.txt` genere los ejecutables `gateway_tests` y `dashboard_tests`.

@@ -6,12 +6,6 @@
 #include <vector>
 #include <algorithm>
 
-struct SignalVehicle
-{
-    SignalId signalId;
-    double value;
-};
-
 struct SignalFault
 {
     SignalId id;
@@ -49,7 +43,7 @@ class VehicleSimulator
 
         // Add a signal to the vector based on its failure state
         void addSignal(
-            std::vector<SignalVehicle>& signals,
+            std::vector<SignalReading>& signals,
             SignalId id,
             double normalValue,
             double faultValue) const;
@@ -60,5 +54,5 @@ class VehicleSimulator
 
         void updateSignal();
 
-        std::vector<SignalVehicle> exposeSignals() const;
+        std::vector<SignalReading> exposeSignals() const;
 };

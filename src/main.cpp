@@ -1,25 +1,34 @@
-#include <ControlECU.hpp>
+#include <chrono>
+#include <thread>
 
-int main(){
-    VehicleSimulator Vehicle;
-    GatewayECU Gateway(Vehicle.exposeSignals()); // Señales simples
-    Gateway.processSignals();
-    ControlECU control(Gateway.exposeSensors());
-    Dashboard(Gateway.exposeSensors()); 
-    //INIT
-    control.Run();
-    Dashboard.Draw(control.exposeData());
-    if(control.exposeState() == SAFE_STATE){
-        return 1;
+#include "ControlECU.hpp"
+#include "Dashboard.hpp"
+#include "GatewayECU.hpp"
+#include "VehicleSimulator.hpp"
+
+// Pausa entre ciclos para que el tablero se alcance a leer
+constexpr std::chrono::milliseconds CYCLE_PERIOD{500};
+
+int main()
+{
+    VehicleSimulator simulator;
+    GatewayECU gateway;
+    ControlECU control(gateway.getSensors());
+    Dashboard dashboard;
+
+    // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
+    dashboard.render(gateway, control.getControlData().currentState);
+    std::this_thread::sleep_for(CYCLE_PERIOD);
+
+    // No se detiene en SAFE_STATE: las señales siguen llegando y la Control permanece ahí hasta Ctrl+C
+    while (true)
+    {
+        simulator.updateSignal();
+        gateway.processCycle(simulator.exposeSignals());
+        control.runControlCycle();
+        dashboard.render(gateway, control.getControlData().currentState);
+        std::this_thread::sleep_for(CYCLE_PERIOD);
     }
-    else{
-    }
-    while(currentState != SAFE_STATE){
-        GatewayECU.processSignals(Vehicle.exposeSignals());
-        ControlECU.updateSensors(GatewayECU.exposeSensors());
-        control.Run();
-        Dashboard.Draw();
-    }
-    return 1;
-    }
+
+    return 0;
 }

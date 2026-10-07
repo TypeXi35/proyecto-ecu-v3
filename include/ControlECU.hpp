@@ -1,25 +1,28 @@
 #pragma once
 
-#include <Sensor.hpp>
-#include <ECUState.hpp>
+#include "ControlData.hpp"
+#include "Sensor.hpp"
+#include "ECUState.hpp"
+#include "SignalTypes.hpp"
 
 #include <vector>
 
 class ControlECU
 {
 private:
-    std::vector<Sensor> &sensors;
     ECUState currentState;
-    ECUState signalState;
-    ECUState missingSignalsState;
-    ECUState coherenceState;
+    ECUData data;
 
 public:
-    ControlECU(std::vector<Sensor> &sensors);
+    explicit ControlECU(const std::vector<Sensor> &gateway_sensors);
     void runControlCycle();
+    ECUData getControlData();
 
 private:
-    ECUState checkSignalState();
-    ECUState checkMissing();
-    ECUState checkCoherence();
+    bool hasCriticalFault();
+    bool isDegraded();
+    void stateTransition(ECUState newState);
+    static const Sensor &getSensor(
+        const std::vector<Sensor> &sensors,
+        SignalId id);
 };

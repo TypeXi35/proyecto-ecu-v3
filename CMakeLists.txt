@@ -68,3 +68,32 @@ target_link_libraries(
 
     ecu_core
 )
+
+# Pruebas de la Gateway y del Dashboard con un guion de datos fijos
+add_executable(
+    gateway_tests
+
+    tests/gateway_tests.cpp
+)
+
+target_link_libraries(
+    gateway_tests
+
+    PRIVATE
+
+    ecu_core
+)
+
+add_executable(
+    dashboard_tests
+
+    tests/dashboard_tests.cpp
+)
+
+target_link_libraries(
+    dashboard_tests
+
+    PRIVATE
+
+    ecu_core
+)
