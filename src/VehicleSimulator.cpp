@@ -57,7 +57,7 @@ void VehicleSimulator::updateSignal()
 void VehicleSimulator::updateFaults()
 {
     // Update existing faults
-    for (int i = 0; i < faults.size(); i++)
+    for (std::size_t i = 0; i < faults.size(); i++)
     {
         if (faults[i].remainingCycles > 0)
         {
@@ -175,7 +175,7 @@ void VehicleSimulator::updateFaults()
 
 bool VehicleSimulator::hasActiveFault(SignalId id) const
 {
-    for (int i = 0; i < faults.size(); i++)
+    for (std::size_t i = 0; i < faults.size(); i++)
     {
         if (faults[i].id == id && faults[i].type != FaultType::NONE)
         {
@@ -188,7 +188,7 @@ bool VehicleSimulator::hasActiveFault(SignalId id) const
 
 FaultType VehicleSimulator::getFaultType(SignalId id) const
 {
-    for (int i = 0; i < faults.size(); i++)
+    for (std::size_t i = 0; i < faults.size(); i++)
     {
         if (faults[i].id == id && faults[i].type != FaultType::NONE)
         {
@@ -200,7 +200,7 @@ FaultType VehicleSimulator::getFaultType(SignalId id) const
 }
 
 void VehicleSimulator::addSignal(
-    std::vector<SignalVehicle>& signals,
+    std::vector<SignalReading>& signals,
     SignalId id,
     double normalValue,
     double faultValue) const
@@ -224,9 +224,9 @@ void VehicleSimulator::addSignal(
     signals.push_back({id, normalValue});
 }
 
-std::vector<SignalVehicle> VehicleSimulator::exposeSignals() const
+std::vector<SignalReading> VehicleSimulator::exposeSignals() const
 {
-    std::vector<SignalVehicle> signals;
+    std::vector<SignalReading> signals;
 
     addSignal(
         signals,
@@ -246,14 +246,14 @@ std::vector<SignalVehicle> VehicleSimulator::exposeSignals() const
         signals,
         SignalId::RPM,
         rpm,
-        8000.0
+        9500.0
     );
 
     addSignal(
         signals,
         SignalId::TEMPERATURE,
         temperature,
-        150.0
+        200.0
     );
 
     addSignal(
@@ -267,7 +267,7 @@ std::vector<SignalVehicle> VehicleSimulator::exposeSignals() const
         signals,
         SignalId::OIL_PRESSURE,
         oilPressure,
-        10.0
+        15.0
     );
 
     return signals;
