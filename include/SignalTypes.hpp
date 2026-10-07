@@ -17,6 +17,14 @@ enum class SignalState {
     NOT_AVAILABLE   // Sin primer dato o dejó de actualizarse
 };
 
+// Tipo de falla que puede simular VehicleSimulator
+enum class FaultType
+{
+    NONE,
+    OUT_OF_RANGE,
+    MISSING
+};
+
 // Lectura de una señal en un ciclo; si no viene en la lista, no llegó
 struct SignalReading {
     SignalId id;
