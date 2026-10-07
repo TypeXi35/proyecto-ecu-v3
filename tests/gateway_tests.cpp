@@ -1,12 +1,16 @@
 // Pruebas de la Gateway con objetos literales
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <limits>
+#include <optional>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
+#include "DriveScenario.hpp"
 #include "GatewayECU.hpp"
 #include "SignalLimits.hpp"
 
@@ -312,6 +316,190 @@ void testSignalsAreIndependent() {
     check(std::count_if(sensors.begin(), sensors.end(), isValid) == 5, "las otras 5 siguen VALID");
 }
 
+// ---------------- Consultas para la ECU de Control y el Dashboard ----------------
+
+void testFindSensorReturnsGatewaySensor() {
+    std::cout << "\n-- findSensor devuelve el sensor de la Gateway --\n";
+    GatewayECU gateway;
+
+    const std::vector<SignalId> ids = {
+        SignalId::SPEED,    SignalId::RPM,             SignalId::TEMPERATURE,
+        SignalId::THROTTLE, SignalId::BATTERY_VOLTAGE, SignalId::OIL_PRESSURE,
+    };
+    // Misma dirección = es el sensor que guarda la Gateway, no una copia
+    const bool allFound = std::all_of(ids.begin(), ids.end(), [&gateway](SignalId id) {
+        const Sensor& found = gateway.findSensor(id);
+        return found.getId() == id && &found == &findSensor(gateway, id);
+    });
+    check(allFound, "encuentra las 6 senales y devuelve el mismo objeto que guarda la Gateway");
+
+    // La referencia sigue al sensor, refleja los ciclos posteriores
+    const Sensor& temperature = gateway.findSensor(SignalId::TEMPERATURE);
+    gateway.processCycle({{SignalId::TEMPERATURE, 91.3}});
+    check(temperature.getValue() == 91.3 && temperature.getState() == SignalState::VALID,
+          "la referencia obtenida antes del ciclo ya muestra 91.3 C VALID");
+}
+
+void testFindSensorUnknownId() {
+    std::cout << "\n-- findSensor con un ID que no existe --\n";
+    const GatewayECU gateway;
+
+    // Un enum class acepta cualquier valor de su tipo base, 99 no es una señal de la Gateway
+    const auto unknownId = static_cast<SignalId>(99);
+    bool threw = false;
+    try {
+        static_cast<void>(gateway.findSensor(unknownId));
+    } catch (const std::out_of_range&) {
+        threw = true;
+    }
+    check(threw, "un ID que no existe lanza std::out_of_range");
+}
+
+void testCountInvalidSignals() {
+    std::cout << "\n-- countInvalidSignals --\n";
+    GatewayECU gateway;
+    check(gateway.countInvalidSignals() == 6, "recien creada: 6 invalidas (todas NOT_AVAILABLE)");
+
+    gateway.processCycle(allValidReadings());
+    check(gateway.countInvalidSignals() == 0, "llegan las 6 en rango: 0 invalidas");
+
+    // Temperatura fuera de rango y sin voltaje de batería
+    const std::vector<SignalReading> faultyReadings = {
+        {SignalId::SPEED,        82.4},
+        {SignalId::RPM,          2840.2},
+        {SignalId::TEMPERATURE,  180.0},
+        {SignalId::THROTTLE,     35.0},
+        {SignalId::OIL_PRESSURE, 2.7},
+    };
+
+    for (unsigned int cycle = 0; cycle < MAX_MISSED_CYCLES; ++cycle) {
+        gateway.processCycle(faultyReadings);
+    }
+    check(gateway.countInvalidSignals() == 1,
+          "temperatura a 180 C y bateria con " + LIMIT_TEXT + " ciclos sin dato (tolerados): 1 invalida");
+
+    gateway.processCycle(faultyReadings);
+    check(gateway.countInvalidSignals() == 2,
+          "bateria con " + LIMIT_PLUS_ONE_TEXT
+              + " ciclos sin dato: 2 invalidas (cuenta OUT_OF_RANGE y NOT_AVAILABLE)");
+
+    gateway.processCycle(allValidReadings());
+    check(gateway.countInvalidSignals() == 0, "vuelven las 6 en rango: 0 invalidas (recuperacion inmediata)");
+}
+
+void testCycleCount() {
+    std::cout << "\n-- getCycleCount --\n";
+    GatewayECU gateway;
+    check(gateway.getCycleCount() == 0, "recien creada: ciclo 0");
+
+    gateway.processCycle(allValidReadings());
+    check(gateway.getCycleCount() == 1, "tras un ciclo con datos: ciclo 1");
+
+    gateway.processCycle({});
+    check(gateway.getCycleCount() == 2, "un ciclo sin ningun dato tambien cuenta: ciclo 2");
+}
+
+// ---------------- Recorrido de varios ciclos ----------------
+
+// Los estados esperados del recorrido cuentan los ciclos sin dato con este límite
+static_assert(MAX_MISSED_CYCLES == 3, "los estados esperados del recorrido suponen MAX_MISSED_CYCLES == 3");
+
+// Nombre de la señal para los mensajes
+std::string signalText(SignalId id) {
+    switch (id) {
+        case SignalId::SPEED:           return "velocidad";
+        case SignalId::RPM:             return "rpm";
+        case SignalId::TEMPERATURE:     return "temperatura";
+        case SignalId::THROTTLE:        return "acelerador";
+        case SignalId::BATTERY_VOLTAGE: return "bateria";
+        case SignalId::OIL_PRESSURE:    return "aceite";
+    }
+    return "desconocida";
+}
+
+void testDriveScenario() {
+    std::cout << "\n-- Recorrido con el guion de tests/DriveScenario.hpp --\n";
+
+    // Abreviaturas de la tabla
+    constexpr SignalState V = SignalState::VALID;
+    constexpr SignalState R = SignalState::OUT_OF_RANGE;
+    constexpr SignalState N = SignalState::NOT_AVAILABLE;
+
+    // Estados esperados por ciclo, en el orden de las columnas
+    const std::vector<std::vector<SignalState>> expectedStates = {
+        // vel rpm temp acel bat aceite
+        {V, V, V, V, V, V},  // 1
+        {V, V, V, V, V, V},  // 2
+        {V, V, R, V, V, V},  // 3
+        {V, V, V, V, V, V},  // 4
+        {V, V, V, V, V, V},  // 5
+        {V, R, V, V, V, V},  // 6
+        {V, V, V, V, N, V},  // 7
+        {R, V, V, V, N, V},  // 8
+        {V, V, V, V, V, V},  // 9
+        {V, V, V, R, V, V},  // 10
+        {V, V, V, R, V, V},  // 11
+        {V, V, V, R, V, V},  // 12
+        {V, V, V, R, V, V},  // 13
+        {N, N, N, N, N, N},  // 14
+        {V, V, V, V, V, V},  // 15
+    };
+
+    const std::vector<ScenarioCycle> scenario = driveScenario();
+    const bool rowsComplete = std::all_of(
+        expectedStates.begin(), expectedStates.end(),
+        [](const std::vector<SignalState>& row) { return row.size() == SCENARIO_SIGNALS.size(); });
+    check(scenario.size() == expectedStates.size() && rowsComplete,
+          "la tabla de estados esperados cubre cada ciclo y cada senal del guion");
+    if (scenario.size() != expectedStates.size() || !rowsComplete) {
+        return;
+    }
+
+    GatewayECU gateway;
+    // Último valor recibido de cada señal, la Gateway debe conservarlo mientras no llegue otro
+    std::vector<double> lastValues(SCENARIO_SIGNALS.size(), 0.0);
+
+    for (std::size_t index = 0; index < scenario.size(); ++index) {
+        const ScenarioCycle& cycle = scenario[index];
+        const std::vector<SignalState>& expected = expectedStates[index];
+        gateway.processCycle(toReadings(cycle));
+
+        std::vector<std::string> problems;
+        for (std::size_t column = 0; column < SCENARIO_SIGNALS.size(); ++column) {
+            const SignalId id = SCENARIO_SIGNALS[column];
+            const Sensor& sensor = gateway.findSensor(id);
+
+            const std::optional<double> arrived = valueOf(cycle, id);
+            if (arrived.has_value()) {
+                lastValues[column] = *arrived;
+            }
+
+            if (sensor.getState() != expected[column]) {
+                problems.push_back(signalText(id) + ": " + toText(sensor.getState()) + ", se esperaba "
+                                   + toText(expected[column]));
+            }
+            if (sensor.getValue() != lastValues[column]) {
+                problems.push_back(signalText(id) + ": valor " + std::to_string(sensor.getValue())
+                                   + ", se esperaba " + std::to_string(lastValues[column]));
+            }
+        }
+
+        const auto expectedInvalid = std::count_if(expected.begin(), expected.end(), [](SignalState state) {
+            return state != SignalState::VALID;
+        });
+        if (gateway.countInvalidSignals() != static_cast<std::size_t>(expectedInvalid)) {
+            problems.push_back("countInvalidSignals: " + std::to_string(gateway.countInvalidSignals())
+                               + ", se esperaba " + std::to_string(expectedInvalid));
+        }
+
+        check(problems.empty(), "ciclo " + std::to_string(index + 1) + ", " + cycle.description + " -> "
+                                    + std::to_string(expectedInvalid) + " invalida(s)");
+        for (const std::string& problem : problems) {
+            std::cout << "          " << problem << '\n';
+        }
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -332,6 +520,15 @@ int main() {
     testRecoveryAfterNotAvailable();
     testSignalThatNeverArrives();
     testSignalsAreIndependent();
+
+    std::cout << "\n===== Parte 2: consultas para Control y Dashboard =====\n";
+    testFindSensorReturnsGatewaySensor();
+    testFindSensorUnknownId();
+    testCountInvalidSignals();
+    testCycleCount();
+
+    std::cout << "\n===== Recorrido de varios ciclos =====\n";
+    testDriveScenario();
 
     std::cout << '\n';
     if (failures == 0) {
