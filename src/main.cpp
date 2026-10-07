@@ -6,11 +6,18 @@
 #include "GatewayECU.hpp"
 #include "VehicleSimulator.hpp"
 
+#ifdef _WIN32
+#include <windows.h>
+#endif
 // Pausa entre ciclos para que el tablero se alcance a leer
 constexpr std::chrono::milliseconds CYCLE_PERIOD{500};
 
 int main()
 {
+    #ifdef _WIN32
+        SetConsoleOutputCP(CP_UTF8);
+        SetConsoleCP(CP_UTF8);
+    #endif
     VehicleSimulator simulator;
     GatewayECU gateway;
     ControlECU control(gateway.getSensors());
