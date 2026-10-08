@@ -1,18 +1,56 @@
 # proyecto-ecu-v3
 
-> Pendiente: nombre del proyecto.
+> ECU-Hito IV
 
 ## Integrantes
 
-> Pendiente.
+> Luis Alan Morales Trejo
+> Hector Eduardo Romero Altamirano
+> Francisco Ebgueny Pérez José
 
 ## Descripción
 
-> Pendiente.
+> Proyecto que simula la ejecucion de ECU en un Automovil
+> recibiendo datos a traves de una simulacion, procesandolos
+> e imprimiendo los resultados a un dashboard en terminal
 
 ## Arquitectura general
 
-> Pendiente: flujo general del sistema.
+El sistema son cuatro componentes en cadena. Cada uno hace una sola cosa y solo conoce al anterior:
+
+```text
+VehicleSimulator ──SignalReading──▶ GatewayECU ──Sensor&──▶ ControlECU ──ECUData&──▶ Dashboard
+   genera señales      (vector)     ¿es confiable?          ¿qué hacer?               muestra
+```
+
+| Componente | Pregunta que responde | Entrada | Salida |
+| --- | --- | --- | --- |
+| Simulador | ¿Qué mide el vehículo? | — | `std::vector<SignalReading>` con las lecturas del ciclo, con fallas simuladas |
+| ECU Gateway | ¿La señal es confiable? | Lecturas del ciclo | 6 `Sensor` con valor y `SignalState` |
+| ECU de Control | ¿En qué estado debe operar? | Referencias a los sensores de la Gateway | `ECUData`: sensores, `ECUState` y ciclo |
+| Dashboard | — (solo muestra) | `ECUData` | Cuadro en la terminal |
+
+### Ciclo de ejecución
+
+`main.cpp` crea los cuatro componentes y los conecta una sola vez; después solo repite el ciclo:
+
+1. Dibuja el ciclo 0: señales NO DISPONIBLE y la Control en `INIT`.
+2. Cada 500 ms:
+   1. `simulator.updateSignal()` genera las lecturas nuevas.
+   2. `gateway.processCycle(simulator.exposeSignals())` las valida.
+   3. `control.runControlCycle()` decide el estado.
+   4. `dashboard.render()` dibuja el resultado.
+3. Se detiene cuando la Control llega a `SAFE_STATE`, después de dibujar ese cuadro.
+
+### Datos compartidos por referencia
+
+Las señales no se copian entre componentes:
+
+- La Gateway es dueña de los 6 `Sensor` y nunca los agrega ni los quita.
+- La Control guarda en su `ECUData` referencias a esos sensores y a su propio estado y contador de ciclos.
+- El Dashboard guarda una referencia a ese `ECUData`.
+
+Por eso se conectan una vez al arrancar y en cada ciclo todos ven los datos actuales sin pasárselos de nuevo. Las dependencias van en un solo sentido: la Gateway no conoce a la Control y el Dashboard no conoce a la Gateway.
 
 ### ECU Gateway
 
@@ -82,20 +120,39 @@ Una señal no puede tener más de una falla activa simultáneamente. Cuando term
 
 ### ECU de Control
 
-> Pendiente.
+Lee los sensores de la Gateway, evalúa en cada ciclo si hay fallas y ejecuta la máquina de estados (ver Estados de la ECU de Control). No valida señales ni dibuja nada.
 
-### Dashboard
-
-Muestra en la terminal, en cada ciclo, un tablero de instrumentos con el estado de las señales que entrega la Gateway y, aparte, el estado de la ECU de Control. Solo muestra: no decide ningún estado ni deduce el de la Control a partir de las señales.
+Al construirse busca sus 6 sensores en la Gateway y guarda referencias a ellos en un `ECUData` (`include/ControlData.hpp`), junto con referencias a su estado actual y a su contador de ciclos. Ese `ECUData` es todo lo que la Control expone hacia afuera:
 
 | Para qué | Cómo |
 | --- | --- |
-| Crear el Dashboard (dibuja en la pantalla) | `Dashboard dashboard;` |
-| Dibujar un cuadro | `dashboard.render(gateway, control.getControlData().currentState);` |
+| Crear la Control | `ControlECU control(gateway.getSensors());`; lanza `std::out_of_range` si falta un sensor |
+| Ejecutar un ciclo | `control.runControlCycle();` después de `gateway.processCycle(...)` |
+| Leer sensores, estado y ciclo | `control.getControlData()` devuelve `const ECUData&` |
 
+```cpp
+struct ECUData {
+    ControlSensors sensors;          // speed, rpm, temperature, batteryVoltage, throttle, oilPressure
+    const ECUState& currentState;
+    const unsigned int& cycleCount;  // ciclos ejecutados; vale 0 antes del primero
+};
+```
+
+Como todo son referencias, quien guarde el `ECUData` ve siempre los valores del ciclo actual sin pedirlos de nuevo.
+
+### Dashboard
+
+Muestra en la terminal, en cada ciclo, un tablero de instrumentos con el estado de las señales y, aparte, el estado de la ECU de Control. Todo lo que dibuja sale del `ECUData` de la Control; no conoce a la Gateway. Solo muestra: no decide ningún estado ni deduce el de la Control a partir de las señales.
+
+| Para qué | Cómo |
+| --- | --- |
+| Crear el Dashboard (dibuja en la pantalla) | `Dashboard dashboard(control.getControlData());` |
+| Dibujar un cuadro | `dashboard.render();` |
+
+- Recibe el `ECUData` una sola vez al construirse; como guarda referencias, cada `render()` muestra el ciclo actual.
 - Cada cuadro se escribe encima del anterior, sin parpadeo.
 - Se dibuja desde el arranque: en el ciclo 0, antes del primer dato, todas las señales aparecen como NO DISPONIBLE y la ECU de Control en INIT.
-- El número de ciclo lo da la Gateway con `getCycleCount()`.
+- El número de ciclo es `ECUData::cycleCount`, que avanza junto con el de la Gateway porque `main` ejecuta un ciclo de cada una por vuelta.
 - Una señal NO DISPONIBLE muestra `---`, porque al arrancar el 0.0 no es una lectura y el último valor recibido ya no es confiable. Una señal FUERA DE RANGO muestra el valor que llegó, completo aunque no quepa en su columna.
 - Los textos van en español sin acentos y la temperatura usa `C` en lugar de `°C`.
 
@@ -126,7 +183,7 @@ Ejemplo del ciclo 8 del guion de pruebas, con la ECU de Control en DEGRADED (aqu
 ```
 
 - **Relojes:** velocidad y RPM tienen aguja, y su escala sale del rango válido de cada señal. Fuera de rango, la aguja se queda en el tope; sin dato o con NaN no hay aguja y el arco se apaga.
-- **Aviso central:** cuántas señales están inválidas.
+- **Aviso central:** cuántas de las 6 señales de `ECUData::sensors` no están en `VALID`.
 - **Barras:** temperatura, acelerador, batería y presión de aceite, con su valor, su estado y los ciclos sin dato cuando hay alguno. La barra marca la posición dentro del rango válido.
 - **ECU de Control:** etiqueta con fondo de color, separada de las señales.
 
@@ -141,30 +198,32 @@ Requiere una terminal con UTF-8, de al menos 80 × 24 y con una fuente que tenga
 
 ## Estructura de archivos
 
-Archivos de la ECU Gateway y del Dashboard:
-
 ```text
+CMakeLists.txt             Biblioteca ecu_core, el ejecutable ecu_simulator y las dos pruebas
 include/
-├── SignalTypes.hpp     SignalId, SignalState y SignalReading, compartidos por todos los componentes
-├── SignalLimits.hpp    Rangos físicos de cada señal y MAX_MISSED_CYCLES
-├── Sensor.hpp          Valor, rango, ciclos sin dato y estado de una señal
-├── GatewayECU.hpp      ECU Gateway
-├── Dashboard.hpp       Dashboard
-├── BrailleCanvas.hpp   Lienzo de puntos braille para dibujar los relojes
-└── VehicleSimulator.hpp   Declaración del simulador y estructura SignalFault
+├── SignalTypes.hpp        SignalId, SignalState y SignalReading, compartidos por todos los componentes
+├── SignalLimits.hpp       Rangos físicos de cada señal y MAX_MISSED_CYCLES
+├── Sensor.hpp             Valor, rango, ciclos sin dato y estado de una señal
+├── VehicleSimulator.hpp   Declaración del simulador y estructura SignalFault
+├── GatewayECU.hpp         ECU Gateway
+├── ECUState.hpp           Estados de la ECU de Control
+├── ControlData.hpp        ControlSensors y ECUData, lo que la Control expone al Dashboard
+├── ControlECU.hpp         ECU de Control
+├── Dashboard.hpp          Dashboard
+└── BrailleCanvas.hpp      Lienzo de puntos braille para dibujar los relojes
 src/
+├── main.cpp               Ciclo principal: simulador → Gateway → Control → Dashboard
 ├── Sensor.cpp
+├── VehicleSimulator.cpp   Generación de señales y simulación de fallas
 ├── GatewayECU.cpp
+├── ControlECU.cpp
 ├── Dashboard.cpp
 └── BrailleCanvas.cpp
 tests/
-├── gateway_tests.cpp   Pruebas de la Gateway
-├── dashboard_tests.cpp Pruebas del Dashboard
-├── DriveScenario.hpp   Guion de 15 ciclos que sustituye al simulador en las pruebas
-└── VehicleSimulator.cpp   Generación de señales y simulación de fallas
+├── gateway_tests.cpp      Pruebas de la Gateway
+├── dashboard_tests.cpp    Pruebas del Dashboard
+└── DriveScenario.hpp      Guion de 15 ciclos que sustituye al simulador en las pruebas
 ```
-
-> Pendiente: archivos del simulador, la ECU de Control, `main.cpp` y `CMakeLists.txt`.
 
 ## Señales implementadas
 
@@ -224,7 +283,30 @@ Tolera pérdidas aisladas de 1 a 3 ciclos sin falsas alarmas y detecta una pérd
 
 ## Estados de la ECU de Control
 
-> Pendiente.
+| Estado | Significa |
+| --- | --- |
+| `INIT` | Arranque; todavía no se ejecuta ningún ciclo. |
+| `OPERATIONAL` | Todas las señales son válidas, están al día y son coherentes. |
+| `DEGRADED` | Alguna señal no crítica falla; el vehículo sigue, con aviso. Se recupera sola. |
+| `SAFE_STATE` | Falla crítica. Es final: no se sale de él y el programa termina. |
+
+En cada ciclo, `runControlCycle()` hace tres revisiones en este orden y se queda con la primera que falla:
+
+1. **Falla crítica** (`hasCriticalFault`) → `SAFE_STATE`: temperatura o voltaje de batería en `OUT_OF_RANGE` o `NOT_AVAILABLE`.
+2. **Degradado** (`isDegraded`) → `DEGRADED`:
+   - velocidad, RPM, acelerador o presión de aceite no están en `VALID`;
+   - velocidad, RPM o acelerador no llegaron en este ciclo (`getMissedCycles() > 0`). La Gateway las deja en `VALID` con su valor anterior hasta 3 ciclos, pero ese valor viejo no sirve para comparar;
+   - acelerador arriba de 80 % con menos de 500 rpm.
+3. **Incoherencia** (`isIncoherent`) → `SAFE_STATE`: la velocidad se aleja más de 15 km/h de la esperada según RPM y acelerador, con la misma relación del simulador (`rpm = 800 + 22 · velocidad + 18 · acelerador`).
+
+El orden importa: la coherencia solo se revisa cuando la revisión 2 ya confirmó que velocidad, RPM y acelerador son válidas y del ciclo actual.
+
+| Desde | Si hay falla crítica | Si está degradado | Si es incoherente | Si todo está bien |
+| --- | --- | --- | --- | --- |
+| `INIT` | `SAFE_STATE` | `DEGRADED` | `SAFE_STATE` | `OPERATIONAL` |
+| `OPERATIONAL` | `SAFE_STATE` | `DEGRADED` | `SAFE_STATE` | `OPERATIONAL` |
+| `DEGRADED` | `SAFE_STATE` | `DEGRADED` | `SAFE_STATE` | `OPERATIONAL` |
+| `SAFE_STATE` | `SAFE_STATE` | `SAFE_STATE` | `SAFE_STATE` | `SAFE_STATE` |
 
 ## STL utilizado
 
@@ -254,7 +336,11 @@ En las pruebas también se usan `std::optional` (una señal que no llegó en el 
 
 ### ECU de Control
 
-> Pendiente.
+| Elemento | Dónde | Para qué |
+| --- | --- | --- |
+| `std::vector` | `ControlECU::ControlECU`, `ControlECU::getSensor` | Recibir los sensores de la Gateway y buscar cada uno por su `SignalId` |
+| `std::out_of_range` | `ControlECU::getSensor` | Avisar si la Gateway no tiene un sensor que la Control necesita |
+| `std::abs` | `ControlECU::isIncoherent` | Diferencia entre la velocidad medida y la esperada |
 
 ### Dashboard
 
@@ -263,20 +349,34 @@ En las pruebas también se usan `std::optional` (una señal que no llegó en el 
 | `std::vector` | `Dashboard.cpp`, `BrailleCanvas` | Lista de barras, celdas de los relojes y puntos del lienzo |
 | `std::array` | `BrailleCanvas.cpp` | Bit de cada punto dentro de su celda braille |
 | `std::for_each` | `Dashboard::render` | Dibujar una barra por señal y escribir cada fila del cuadro |
+| `std::count_if` | `Dashboard::render` | Contar las señales que no están en `VALID` para el aviso central |
 | `std::count_if` | `displayWidth` en `Dashboard.cpp` | Contar columnas y no bytes en el texto con caracteres de cuadro y braille |
 | `std::clamp` | `scaleFraction` en `Dashboard.cpp` | Dejar la aguja en el tope cuando el valor está fuera de rango |
 | `std::optional` | `scaleFraction` en `Dashboard.cpp` | Indicar que no hay aguja que dibujar (sin dato o NaN) |
 | `std::ostringstream`, `std::fixed`, `std::setprecision` | Formato de valores | Valores con decimales fijos |
 
-Cada señal se localiza con `GatewayECU::findSensor` (`std::find_if`). En las pruebas también se usan `std::find_if`, `std::all_of`, `std::none_of`, `std::count`, `std::ostringstream` y `std::istringstream`.
+Cada señal se lee directo de `ECUData::sensors`, sin buscarla. En las pruebas también se usan `std::find_if`, `std::all_of`, `std::none_of`, `std::count`, `std::ostringstream` y `std::istringstream`.
 
 ## Instrucciones de compilación
 
-> Pendiente.
+Requiere CMake 3.16 o más reciente y un compilador con C++17.
+
+```bash
+cmake -S . -B build
+cmake --build build
+```
+
+Con Visual Studio los ejecutables quedan en `build/Debug/` en lugar de `build/`.
 
 ## Instrucciones de ejecución
 
-> Pendiente: ejecución del sistema completo.
+### Sistema completo
+
+```bash
+./build/ecu_simulator
+```
+
+Cada 500 ms ejecuta un ciclo (simulador → Gateway → ECU de Control) y redibuja el Dashboard. Corre hasta que la ECU de Control entra a `SAFE_STATE`: dibuja ese último cuadro, imprime `ECU de Control en SAFE_STATE, simulación detenida` y termina con código 1. También se puede detener antes con Ctrl+C. En Windows cambia la consola a UTF-8 para que se vean los caracteres de cuadro y braille.
 
 ### Pruebas de la Gateway
 
