@@ -35,7 +35,50 @@ Los sensores se crean una sola vez y nunca se agregan ni se quitan, así que las
 
 ### Simulador
 
-> Pendiente.
+El componente `VehicleSimulator` simula el comportamiento de un vehículo mediante la generación y actualización de seis señales: velocidad, RPM, temperatura, acelerador, voltaje de batería y presión de aceite.
+
+En cada ciclo, actualiza los valores de las señales considerando las relaciones entre ellas y pequeñas variaciones aleatorias para representar un comportamiento dinámico.
+
+También permite generar fallas de manera aleatoria para comprobar cómo responde el sistema ante señales fuera de rango o que dejan de recibirse.
+
+**Funcionamiento principal:**
+
+| Función | Descripción |
+| --- | --- |
+| `VehicleSimulator()` | Inicializa los valores de las señales y configura el generador aleatorio. |
+| `updateSignal()` | Actualiza el comportamiento normal de las seis señales y administra las fallas. |
+| `exposeSignals()` | Devuelve un `std::vector<SignalReading>` con las señales disponibles del ciclo, considerando las fallas activas. |
+
+**Generación de señales:**
+
+- **Acelerador:** cambia aleatoriamente en cada ciclo y se mantiene entre 0 y 100 %.
+- **Velocidad:** aumenta o disminuye progresivamente según la posición del acelerador.
+- **RPM:** se calculan considerando la velocidad, el acelerador y una pequeña variación aleatoria.
+- **Temperatura:** evoluciona gradualmente hacia una temperatura objetivo que depende del acelerador.
+- **Voltaje de batería:** se mantiene alrededor de 13.8 V con pequeñas variaciones.
+- **Presión de aceite:** depende de las RPM y presenta pequeñas variaciones aleatorias.
+
+**Simulación de fallas:**
+
+En cada ciclo existe un 5 % de probabilidad de intentar generar una nueva falla. Cuando esto ocurre, se selecciona aleatoriamente una de las seis señales, el tipo de falla y su duración.
+
+| Tipo de falla | Comportamiento |
+| --- | --- |
+| `OUT_OF_RANGE` | Sustituye el valor normal por uno fuera del rango válido de la señal. |
+| `MISSING` | Omite la señal del vector de lecturas, simulando que el dato no fue recibido. |
+
+Las fallas tienen una duración aleatoria de 3 a 10 ciclos. El simulador almacena las fallas en un `std::vector<SignalFault>`, donde registra la señal afectada, el tipo de falla y los ciclos restantes.
+
+Una señal no puede tener más de una falla activa simultáneamente. Cuando termina una falla, su registro se marca como `NONE` y puede reutilizarse posteriormente.
+
+**Funciones internas:**
+
+| Función | Descripción |
+| --- | --- |
+| `updateFaults()` | Actualiza la duración de las fallas activas e intenta generar nuevas fallas. |
+| `hasActiveFault()` | Comprueba si una señal ya tiene una falla activa. |
+| `getFaultType()` | Obtiene el tipo de falla activa de una señal o devuelve `NONE`. |
+| `addSignal()` | Agrega una lectura normal, una lectura fuera de rango u omite la señal según su falla activa. |
 
 ### ECU de Control
 
@@ -107,7 +150,8 @@ include/
 ├── Sensor.hpp          Valor, rango, ciclos sin dato y estado de una señal
 ├── GatewayECU.hpp      ECU Gateway
 ├── Dashboard.hpp       Dashboard
-└── BrailleCanvas.hpp   Lienzo de puntos braille para dibujar los relojes
+├── BrailleCanvas.hpp   Lienzo de puntos braille para dibujar los relojes
+└── VehicleSimulator.hpp   Declaración del simulador y estructura SignalFault
 src/
 ├── Sensor.cpp
 ├── GatewayECU.cpp
@@ -116,7 +160,8 @@ src/
 tests/
 ├── gateway_tests.cpp   Pruebas de la Gateway
 ├── dashboard_tests.cpp Pruebas del Dashboard
-└── DriveScenario.hpp   Guion de 15 ciclos que sustituye al simulador en las pruebas
+├── DriveScenario.hpp   Guion de 15 ciclos que sustituye al simulador en las pruebas
+└── VehicleSimulator.cpp   Generación de señales y simulación de fallas
 ```
 
 > Pendiente: archivos del simulador, la ECU de Control, `main.cpp` y `CMakeLists.txt`.
@@ -197,7 +242,15 @@ En las pruebas también se usan `std::optional` (una señal que no llegó en el 
 
 ### Simulador
 
-> Pendiente.
+| Elemento | Dónde | Para qué |
+| --- | --- | --- |
+| `std::vector` | `VehicleSimulator` | Almacenar las fallas y devolver las lecturas generadas. |
+| `std::mt19937` | `VehicleSimulator` | Generar números pseudoaleatorios. |
+| `std::normal_distribution` | `updateSignal()` | Agregar pequeñas variaciones a las señales. |
+| `std::uniform_real_distribution` | `updateSignal()`, `updateFaults()` | Simular cambios del acelerador y determinar la probabilidad de falla. |
+| `std::uniform_int_distribution` | `updateFaults()` | Seleccionar la señal afectada, el tipo de falla y su duración. |
+| `std::clamp` | `updateSignal()` | Mantener el acelerador y las RPM dentro de sus límites definidos. |
+| `std::max` | `updateSignal()` | Evitar valores negativos de velocidad y presión de aceite. |
 
 ### ECU de Control
 
