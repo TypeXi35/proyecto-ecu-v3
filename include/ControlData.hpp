@@ -15,4 +15,5 @@ struct ControlSensors {
 struct ECUData {
     ControlSensors sensors;
     const ECUState& currentState;
+    const unsigned int& cycleCount;
 };

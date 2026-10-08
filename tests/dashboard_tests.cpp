@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "BrailleCanvas.hpp"
+#include "ControlData.hpp"
 #include "Dashboard.hpp"
 #include "DriveScenario.hpp"
 #include "GatewayECU.hpp"
@@ -38,8 +39,15 @@ GatewayECU gatewayAfter(std::size_t cycles) {
 
 // Dibuja un cuadro en memoria en lugar de la pantalla
 std::string render(const GatewayECU& gateway, ECUState controlState) {
+    const unsigned int cycle = gateway.getCycleCount();
+    const ECUData controlData{{gateway.findSensor(SignalId::SPEED), gateway.findSensor(SignalId::RPM),
+                               gateway.findSensor(SignalId::TEMPERATURE),
+                               gateway.findSensor(SignalId::BATTERY_VOLTAGE),
+                               gateway.findSensor(SignalId::THROTTLE), gateway.findSensor(SignalId::OIL_PRESSURE)},
+                              controlState,
+                              cycle};
     std::ostringstream out;
-    Dashboard(out).render(gateway, controlState);
+    Dashboard(controlData, out).render();
     return out.str();
 }
 

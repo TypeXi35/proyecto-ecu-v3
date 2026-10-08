@@ -337,15 +337,22 @@ std::vector<StyledLine> drawWarning(std::size_t invalid, std::size_t total) {
 
 }  // namespace
 
-Dashboard::Dashboard(std::ostream& output) : out(output) {
+Dashboard::Dashboard(const ECUData& sourceData, std::ostream& output) : controlData(sourceData), out(output) {
 }
 
-void Dashboard::render(const GatewayECU& gateway, ECUState controlState) const {
-    const Sensor& speed = gateway.findSensor(SignalId::SPEED);
-    const Sensor& rpm = gateway.findSensor(SignalId::RPM);
+void Dashboard::render() const {
+    const Sensor& speed = controlData.sensors.speed;
+    const Sensor& rpm = controlData.sensors.rpm;
+    const ECUState controlState = controlData.currentState;
     const std::vector<StyledLine> speedDial = drawDial(speed, 6, 1.0);
     const std::vector<StyledLine> rpmDial = drawDial(rpm, 9, 1000.0);
-    const std::vector<StyledLine> warning = drawWarning(gateway.countInvalidSignals(), gateway.getSensors().size());
+    const std::vector<const Sensor*> signals = {
+        &controlData.sensors.speed,       &controlData.sensors.rpm,      &controlData.sensors.temperature,
+        &controlData.sensors.batteryVoltage, &controlData.sensors.throttle, &controlData.sensors.oilPressure,
+    };
+    const auto invalid = static_cast<std::size_t>(std::count_if(
+        signals.begin(), signals.end(), [](const Sensor* sensor) { return sensor->getState() != SignalState::VALID; }));
+    const std::vector<StyledLine> warning = drawWarning(invalid, signals.size());
 
     std::vector<StyledLine> body(1);
     for (std::size_t row = 0; row < speedDial.size(); ++row) {
@@ -361,11 +368,12 @@ void Dashboard::render(const GatewayECU& gateway, ECUState controlState) const {
                        .add(centered(signalStateText(rpm.getState()), dialWidth), stateColor(rpm.getState())));
     body.emplace_back();
 
-    const std::vector<SignalId> gauges = {
-        SignalId::TEMPERATURE, SignalId::THROTTLE, SignalId::BATTERY_VOLTAGE, SignalId::OIL_PRESSURE,
+    const std::vector<const Sensor*> gauges = {
+        &controlData.sensors.temperature, &controlData.sensors.throttle,
+        &controlData.sensors.batteryVoltage, &controlData.sensors.oilPressure,
     };
     std::for_each(gauges.begin(), gauges.end(),
-                  [&](SignalId id) { body.push_back(drawGauge(gateway.findSensor(id))); });
+                  [&](const Sensor* sensor) { body.push_back(drawGauge(*sensor)); });
 
     const std::string controlText = " " + controlStateText(controlState) + " ";
     const std::string controlLabel = "ECU DE CONTROL  ";
@@ -374,7 +382,7 @@ void Dashboard::render(const GatewayECU& gateway, ECUState controlState) const {
         .add(controlLabel, LABEL_COLOR)
         .add(controlText, controlBadgeColor(controlState));
 
-    const std::string cycleText = "CICLO " + std::to_string(gateway.getCycleCount());
+    const std::string cycleText = "CICLO " + std::to_string(controlData.cycleCount);
     const std::string frame = "\033[" + FRAME_COLOR + "m";
     const std::string title = "\033[" + VALUE_COLOR + "m";
 

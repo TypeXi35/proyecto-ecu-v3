@@ -11,16 +11,18 @@ class ControlECU
 {
 private:
     ECUState currentState;
-    ECUData data;
+    unsigned int cycleCount{0};
+    ECUData controlData;
 
 public:
     explicit ControlECU(const std::vector<Sensor> &gateway_sensors);
     void runControlCycle();
-    ECUData getControlData();
+    const ECUData &getControlData() const;
 
 private:
     bool hasCriticalFault();
     bool isDegraded();
+    bool isIncoherent();
     void stateTransition(ECUState newState);
     static const Sensor &getSensor(
         const std::vector<Sensor> &sensors,

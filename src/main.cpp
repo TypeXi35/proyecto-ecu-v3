@@ -1,4 +1,6 @@
 #include <chrono>
+#include <cstdlib>
+#include <iostream>
 #include <thread>
 
 #include "ControlECU.hpp"
@@ -21,21 +23,22 @@ int main()
     VehicleSimulator simulator;
     GatewayECU gateway;
     ControlECU control(gateway.getSensors());
-    Dashboard dashboard;
+    Dashboard dashboard(control.getControlData());
 
     // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
-    dashboard.render(gateway, control.getControlData().currentState);
+    dashboard.render();
     std::this_thread::sleep_for(CYCLE_PERIOD);
 
-    // No se detiene en SAFE_STATE: las señales siguen llegando y la Control permanece ahí hasta Ctrl+C
-    while (true)
+    // Corre hasta que la Control llega a SAFE_STATE; el último cuadro ya muestra ese estado
+    while (control.getControlData().currentState != ECUState::SAFE_STATE)
     {
         simulator.updateSignal();
         gateway.processCycle(simulator.exposeSignals());
         control.runControlCycle();
-        dashboard.render(gateway, control.getControlData().currentState);
+        dashboard.render();
         std::this_thread::sleep_for(CYCLE_PERIOD);
     }
 
-    return 0;
+    std::cout << "ECU de Control en SAFE_STATE, simulación detenida\n";
+    return EXIT_FAILURE;
 }

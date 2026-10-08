@@ -10,26 +10,23 @@ constexpr double RPM_PER_KMH = 22.0;
 constexpr double RPM_PER_THROTTLE = 18.0;
 constexpr double SPEED_TOLERANCE = 15.0;
 
-// Válida y actualizada en cada ciclo
-static bool isFresh(const Sensor &sensor)
-{
-    return sensor.getState() == SignalState::VALID && sensor.getMissedCycles() == 0;
-}
-
 ControlECU::ControlECU(const std::vector<Sensor> &gateway_sensors) : currentState(ECUState::INIT),
-                                                                     data{
+                                                                     controlData{
                                                                          {getSensor(gateway_sensors, SignalId::SPEED),
                                                                           getSensor(gateway_sensors, SignalId::RPM),
                                                                           getSensor(gateway_sensors, SignalId::TEMPERATURE),
                                                                           getSensor(gateway_sensors, SignalId::BATTERY_VOLTAGE),
                                                                           getSensor(gateway_sensors, SignalId::THROTTLE),
                                                                           getSensor(gateway_sensors, SignalId::OIL_PRESSURE)},
-                                                                         currentState}
+                                                                         currentState,
+                                                                         cycleCount}
 {
 }
 
+// El orden importa: isIncoherent solo se evalúa cuando isDegraded ya confirmó datos válidos y frescos
 void ControlECU::runControlCycle()
 {
+    ++cycleCount;
     switch (currentState)
     {
     case ECUState::INIT:
@@ -43,6 +40,11 @@ void ControlECU::runControlCycle()
             stateTransition(ECUState::DEGRADED);
             break;
         }
+        if (isIncoherent())
+        {
+            stateTransition(ECUState::SAFE_STATE);
+            break;
+        }
         stateTransition(ECUState::OPERATIONAL);
         break;
     case ECUState::OPERATIONAL:
@@ -54,6 +56,11 @@ void ControlECU::runControlCycle()
         if (isDegraded())
         {
             stateTransition(ECUState::DEGRADED);
+            break;
+        }
+        if (isIncoherent())
+        {
+            stateTransition(ECUState::SAFE_STATE);
         }
         break;
     case ECUState::DEGRADED:
@@ -62,10 +69,16 @@ void ControlECU::runControlCycle()
             stateTransition(ECUState::SAFE_STATE);
             break;
         }
-        if (isDegraded() == false)
+        if (isDegraded())
         {
-            stateTransition(ECUState::OPERATIONAL);
+            break;
         }
+        if (isIncoherent())
+        {
+            stateTransition(ECUState::SAFE_STATE);
+            break;
+        }
+        stateTransition(ECUState::OPERATIONAL);
         break;
     case ECUState::SAFE_STATE:
         break;
@@ -74,53 +87,57 @@ void ControlECU::runControlCycle()
 
 bool ControlECU::hasCriticalFault()
 {
-    if (data.sensors.temperature.getState() == SignalState::OUT_OF_RANGE)
+    if (controlData.sensors.temperature.getState() == SignalState::OUT_OF_RANGE)
     {
         return true;
     }
 
-    if (data.sensors.batteryVoltage.getState() == SignalState::OUT_OF_RANGE)
+    if (controlData.sensors.batteryVoltage.getState() == SignalState::OUT_OF_RANGE)
     {
         return true;
     }
 
-    if (data.sensors.temperature.getState() == SignalState::NOT_AVAILABLE ||
-        data.sensors.batteryVoltage.getState() == SignalState::NOT_AVAILABLE)
+    if (controlData.sensors.temperature.getState() == SignalState::NOT_AVAILABLE ||
+        controlData.sensors.batteryVoltage.getState() == SignalState::NOT_AVAILABLE)
     {
         return true;
     }
 
-    // Solo se compara con datos válidos de cada ciclo
-    if (isFresh(data.sensors.speed) && isFresh(data.sensors.rpm) && isFresh(data.sensors.throttle))
-    {
-        double expectedSpeed = (data.sensors.rpm.getValue() - IDLE_RPM -
-                                RPM_PER_THROTTLE * data.sensors.throttle.getValue()) /
-                               RPM_PER_KMH;
-        bool coherent = std::abs(data.sensors.speed.getValue() - expectedSpeed) <= SPEED_TOLERANCE;
-        if (!coherent)
-        {
-            return true;
-        }
-    }
     return false;
 }
 
 bool ControlECU::isDegraded()
 {
-    if (data.sensors.rpm.getState() != SignalState::VALID ||
-        data.sensors.oilPressure.getState() != SignalState::VALID ||
-        data.sensors.speed.getState() != SignalState::VALID ||
-        data.sensors.throttle.getState() != SignalState::VALID)
+    if (controlData.sensors.rpm.getState() != SignalState::VALID ||
+        controlData.sensors.oilPressure.getState() != SignalState::VALID ||
+        controlData.sensors.speed.getState() != SignalState::VALID ||
+        controlData.sensors.throttle.getState() != SignalState::VALID)
     {
         return true;
     }
 
-    if (data.sensors.throttle.getValue() > 80 && data.sensors.rpm.getValue() < 500)
+    // Un sensor sigue VALID con su valor anterior mientras no supere sus ciclos tolerados
+    if (controlData.sensors.speed.getMissedCycles() > 0 ||
+        controlData.sensors.rpm.getMissedCycles() > 0 ||
+        controlData.sensors.throttle.getMissedCycles() > 0)
+    {
+        return true;
+    }
+
+    if (controlData.sensors.throttle.getValue() > 80 && controlData.sensors.rpm.getValue() < 500)
     {
         return true;
     }
 
     return false;
+}
+
+bool ControlECU::isIncoherent()
+{
+    double expectedSpeed = (controlData.sensors.rpm.getValue() - IDLE_RPM -
+                            RPM_PER_THROTTLE * controlData.sensors.throttle.getValue()) /
+                           RPM_PER_KMH;
+    return std::abs(controlData.sensors.speed.getValue() - expectedSpeed) > SPEED_TOLERANCE;
 }
 
 void ControlECU::stateTransition(ECUState newState)
@@ -128,9 +145,9 @@ void ControlECU::stateTransition(ECUState newState)
     currentState = newState;
 }
 
-ECUData ControlECU::getControlData()
+const ECUData &ControlECU::getControlData() const
 {
-    return data;
+    return controlData;
 }
 
 const Sensor &ControlECU::getSensor(
