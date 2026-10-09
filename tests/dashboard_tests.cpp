@@ -38,8 +38,7 @@ GatewayECU gatewayAfter(std::size_t cycles) {
 }
 
 // Dibuja un cuadro en memoria en lugar de la pantalla
-std::string render(const GatewayECU& gateway, ECUState controlState) {
-    const unsigned int cycle = gateway.getCycleCount();
+std::string render(const GatewayECU& gateway, ECUState controlState, unsigned int cycle = 0) {
     const ECUData controlData{{gateway.findSensor(SignalId::SPEED), gateway.findSensor(SignalId::RPM),
                                gateway.findSensor(SignalId::TEMPERATURE),
                                gateway.findSensor(SignalId::BATTERY_VOLTAGE),
@@ -208,7 +207,7 @@ R"frame(╭─ ECU GATEWAY / CONTROL ──────────────�
 │                                                  ECU DE CONTROL   DEGRADED   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 )frame";
-    checkFrame(stripAnsi(render(gatewayAfter(8), ECUState::DEGRADED)), expected,
+    checkFrame(stripAnsi(render(gatewayAfter(8), ECUState::DEGRADED, 8)), expected,
                "aguja de velocidad en el tope por -5 km/h, bateria sin dato y aceite con 1 ciclo sin dato");
 }
 
@@ -237,7 +236,7 @@ R"frame(╭─ ECU GATEWAY / CONTROL ──────────────�
 │                                                ECU DE CONTROL   SAFE_STATE   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 )frame";
-    checkFrame(stripAnsi(render(gatewayAfter(14), ECUState::SAFE_STATE)), expected,
+    checkFrame(stripAnsi(render(gatewayAfter(14), ECUState::SAFE_STATE, 14)), expected,
                "las 6 NO DISPONIBLE con sus ciclos sin dato y la ECU de Control en SAFE_STATE");
 }
 
@@ -250,7 +249,7 @@ void testClusterLayout() {
         if (cycle > 0) {
             gateway.processCycle(toReadings(scenario[cycle - 1]));
         }
-        const std::string frame = render(gateway, ECUState::OPERATIONAL);
+        const std::string frame = render(gateway, ECUState::OPERATIONAL, static_cast<unsigned int>(cycle));
         const std::vector<std::string> lines = splitLines(stripAnsi(frame));
         const bool sameSize = lines.size() == 21 && std::all_of(lines.begin(), lines.end(), [](const std::string& line) {
             return displayWidth(line) == 80;

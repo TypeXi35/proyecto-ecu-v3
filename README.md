@@ -67,7 +67,6 @@ La Gateway crea sus propios sensores y es dueña de ellos (`std::vector<Sensor>`
 | Leer todos los sensores | `gateway.getSensors()` devuelve `const std::vector<Sensor>&` |
 | Buscar una señal | `gateway.findSensor(SignalId::TEMPERATURE)` devuelve `const Sensor&`; lanza `std::out_of_range` si el ID no existe |
 | Contar las señales inválidas | `gateway.countInvalidSignals()` cuenta las que no están en `VALID` |
-| Saber cuántos ciclos lleva | `gateway.getCycleCount()`; vale 0 antes del primer ciclo |
 
 Los sensores se crean una sola vez y nunca se agregan ni se quitan, así que las referencias a ellos siguen válidas mientras exista la Gateway y muestran cada ciclo nuevo.
 
@@ -152,7 +151,7 @@ Muestra en la terminal, en cada ciclo, un tablero de instrumentos con el estado 
 - Recibe el `ECUData` una sola vez al construirse; como guarda referencias, cada `render()` muestra el ciclo actual.
 - Cada cuadro se escribe encima del anterior, sin parpadeo.
 - Se dibuja desde el arranque: en el ciclo 0, antes del primer dato, todas las señales aparecen como NO DISPONIBLE y la ECU de Control en INIT.
-- El número de ciclo es `ECUData::cycleCount`, que avanza junto con el de la Gateway porque `main` ejecuta un ciclo de cada una por vuelta.
+- El número de ciclo es `ECUData::cycleCount`, el contador de la ECU de Control, que avanza una vez por cada `runControlCycle()`.
 - Una señal NO DISPONIBLE muestra `---`, porque al arrancar el 0.0 no es una lectura y el último valor recibido ya no es confiable. Una señal FUERA DE RANGO muestra el valor que llegó, completo aunque no quepa en su columna.
 - Los textos van en español sin acentos y la temperatura usa `C` en lugar de `°C`.
 

@@ -387,18 +387,6 @@ void testCountInvalidSignals() {
     check(gateway.countInvalidSignals() == 0, "vuelven las 6 en rango: 0 invalidas (recuperacion inmediata)");
 }
 
-void testCycleCount() {
-    std::cout << "\n-- getCycleCount --\n";
-    GatewayECU gateway;
-    check(gateway.getCycleCount() == 0, "recien creada: ciclo 0");
-
-    gateway.processCycle(allValidReadings());
-    check(gateway.getCycleCount() == 1, "tras un ciclo con datos: ciclo 1");
-
-    gateway.processCycle({});
-    check(gateway.getCycleCount() == 2, "un ciclo sin ningun dato tambien cuenta: ciclo 2");
-}
-
 // ---------------- Recorrido de varios ciclos ----------------
 
 // Los estados esperados del recorrido cuentan los ciclos sin dato con este límite
@@ -525,7 +513,6 @@ int main() {
     testFindSensorReturnsGatewaySensor();
     testFindSensorUnknownId();
     testCountInvalidSignals();
-    testCycleCount();
 
     std::cout << "\n===== Recorrido de varios ciclos =====\n";
     testDriveScenario();

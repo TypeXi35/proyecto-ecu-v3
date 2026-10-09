@@ -25,11 +25,7 @@ public:
     // Cuenta las señales que no están en VALID
     std::size_t countInvalidSignals() const;
 
-    // Ciclos procesados desde que se creó la Gateway
-    unsigned int getCycleCount() const;
-
 private:
     // La Gateway es dueña de los sensores
     std::vector<Sensor> sensors;
-    unsigned int cycleCount{0};
 };

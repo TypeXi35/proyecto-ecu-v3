@@ -28,7 +28,6 @@ void GatewayECU::processCycle(const std::vector<SignalReading>& readings) {
             sensor.registerMissedCycle();
         }
     });
-    ++cycleCount;
 }
 
 const std::vector<Sensor>& GatewayECU::getSensors() const {
@@ -50,8 +49,4 @@ std::size_t GatewayECU::countInvalidSignals() const {
     });
    
     return static_cast<std::size_t>(invalid);
-}
-
-unsigned int GatewayECU::getCycleCount() const {
-    return cycleCount;
 }
