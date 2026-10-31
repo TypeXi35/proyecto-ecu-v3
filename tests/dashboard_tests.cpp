@@ -294,12 +294,16 @@ void testClusterControlBadge() {
     std::cout << "\n-- Etiqueta de la ECU de Control --\n";
     const GatewayECU gateway = gatewayAfter(1);
     check(contains(render(gateway, ECUState::INIT), "\033[1;38;5;255;48;5;240m INIT \033[0m"), "INIT en gris");
+    check(contains(render(gateway, ECUState::SELF_TEST), "\033[1;38;5;16;48;5;39m SELF_TEST \033[0m"),
+          "SELF_TEST en azul");
     check(contains(render(gateway, ECUState::OPERATIONAL), "\033[1;38;5;16;48;5;42m OPERATIONAL \033[0m"),
           "OPERATIONAL en verde");
     check(contains(render(gateway, ECUState::DEGRADED), "\033[1;38;5;16;48;5;214m DEGRADED \033[0m"),
           "DEGRADED en ambar");
     check(contains(render(gateway, ECUState::SAFE_STATE), "\033[1;38;5;231;48;5;196m SAFE_STATE \033[0m"),
           "SAFE_STATE en rojo");
+    check(contains(render(gateway, ECUState::SHUTDOWN), "\033[1;38;5;250;48;5;52m SHUTDOWN \033[0m"),
+          "SHUTDOWN en rojo oscuro");
 }
 
 void testClusterWarning() {

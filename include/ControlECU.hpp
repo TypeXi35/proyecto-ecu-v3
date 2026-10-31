@@ -20,9 +20,9 @@ public:
     const ECUData &getControlData() const;
 
 private:
-    bool hasCriticalFault();
-    bool isDegraded();
-    bool isIncoherent();
+    bool hasCriticalFault() const;
+    bool isDegraded() const;
+    bool isIncoherent() const;
     void stateTransition(ECUState newState);
     static const Sensor &getSensor(
         const std::vector<Sensor> &sensors,

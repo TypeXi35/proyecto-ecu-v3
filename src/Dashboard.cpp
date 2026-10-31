@@ -42,9 +42,11 @@ std::string signalStateText(SignalState state) {
 std::string controlStateText(ECUState state) {
     switch (state) {
         case ECUState::INIT:        return "INIT";
+        case ECUState::SELF_TEST:   return "SELF_TEST";
         case ECUState::OPERATIONAL: return "OPERATIONAL";
         case ECUState::DEGRADED:    return "DEGRADED";
         case ECUState::SAFE_STATE:  return "SAFE_STATE";
+        case ECUState::SHUTDOWN:    return "SHUTDOWN";
     }
     return "DESCONOCIDO";
 }
@@ -95,12 +97,15 @@ std::string stateColor(SignalState state) {
 }
 
 // Etiqueta con fondo de color para el estado de la ECU de Control
+// SELF_TEST en azul (revisando); SHUTDOWN en rojo oscuro, el rojo de SAFE_STATE ya apagado
 std::string controlBadgeColor(ECUState state) {
     switch (state) {
         case ECUState::INIT:        return "1;38;5;255;48;5;240";
+        case ECUState::SELF_TEST:   return "1;38;5;16;48;5;39";
         case ECUState::OPERATIONAL: return "1;38;5;16;48;5;42";
         case ECUState::DEGRADED:    return "1;38;5;16;48;5;214";
         case ECUState::SAFE_STATE:  return "1;38;5;231;48;5;196";
+        case ECUState::SHUTDOWN:    return "1;38;5;250;48;5;52";
     }
     return "";
 }

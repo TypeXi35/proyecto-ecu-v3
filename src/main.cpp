@@ -30,7 +30,7 @@ int main()
     std::this_thread::sleep_for(CYCLE_PERIOD);
 
     // Corre hasta que la Control llega a SAFE_STATE; el último cuadro ya muestra ese estado
-    while (control.getControlData().currentState != ECUState::SAFE_STATE)
+    while (control.getControlData().currentState != ECUState::SHUTDOWN)
     {
         simulator.updateSignal();
         gateway.processCycle(simulator.exposeSignals());
@@ -39,6 +39,6 @@ int main()
         std::this_thread::sleep_for(CYCLE_PERIOD);
     }
 
-    std::cout << "ECU de Control en SAFE_STATE, simulación detenida\n";
+    std::cout << "ECU de Control en SHUTDOWN, simulación detenida\n";
     return EXIT_FAILURE;
 }

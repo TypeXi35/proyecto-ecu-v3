@@ -9,6 +9,8 @@ constexpr double IDLE_RPM = 800.0;
 constexpr double RPM_PER_KMH = 22.0;
 constexpr double RPM_PER_THROTTLE = 18.0;
 constexpr double SPEED_TOLERANCE = 15.0;
+constexpr double HIGH_THROTTLE = 80.0;
+constexpr double MIN_RPM_UNDER_LOAD = 500.0;
 
 ControlECU::ControlECU(const std::vector<Sensor> &gateway_sensors) : currentState(ECUState::INIT),
                                                                      controlData{
@@ -23,13 +25,16 @@ ControlECU::ControlECU(const std::vector<Sensor> &gateway_sensors) : currentStat
 {
 }
 
-// El orden importa: isIncoherent solo se evalúa cuando isDegraded ya confirmó datos válidos y frescos
+
 void ControlECU::runControlCycle()
 {
     ++cycleCount;
     switch (currentState)
     {
     case ECUState::INIT:
+        stateTransition(ECUState::SELF_TEST); 
+        break;
+    case ECUState::SELF_TEST:
         if (hasCriticalFault())
         {
             stateTransition(ECUState::SAFE_STATE);
@@ -43,7 +48,6 @@ void ControlECU::runControlCycle()
         if (isIncoherent())
         {
             stateTransition(ECUState::SAFE_STATE);
-            break;
         }
         stateTransition(ECUState::OPERATIONAL);
         break;
@@ -81,11 +85,15 @@ void ControlECU::runControlCycle()
         stateTransition(ECUState::OPERATIONAL);
         break;
     case ECUState::SAFE_STATE:
+        stateTransition(ECUState::SHUTDOWN);
+        break;
+    case ECUState::SHUTDOWN:
         break;
     }
 }
 
-bool ControlECU::hasCriticalFault()
+
+bool ControlECU::hasCriticalFault() const
 {
     if (controlData.sensors.temperature.getState() == SignalState::OUT_OF_RANGE)
     {
@@ -106,7 +114,7 @@ bool ControlECU::hasCriticalFault()
     return false;
 }
 
-bool ControlECU::isDegraded()
+ bool ControlECU::isDegraded() const
 {
     if (controlData.sensors.rpm.getState() != SignalState::VALID ||
         controlData.sensors.oilPressure.getState() != SignalState::VALID ||
@@ -124,16 +132,15 @@ bool ControlECU::isDegraded()
         return true;
     }
 
-    if (controlData.sensors.throttle.getValue() > 80 && controlData.sensors.rpm.getValue() < 500)
-    {
-        return true;
-    }
-
     return false;
 }
 
-bool ControlECU::isIncoherent()
+bool ControlECU::isIncoherent() const
 {
+    if (controlData.sensors.throttle.getValue() > HIGH_THROTTLE && controlData.sensors.rpm.getValue() < MIN_RPM_UNDER_LOAD)
+    {
+        return true;
+    }
     double expectedSpeed = (controlData.sensors.rpm.getValue() - IDLE_RPM -
                             RPM_PER_THROTTLE * controlData.sensors.throttle.getValue()) /
                            RPM_PER_KMH;
