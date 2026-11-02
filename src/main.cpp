@@ -22,7 +22,7 @@ int main()
     #endif
     VehicleSimulator simulator;
     GatewayECU gateway;
-    ControlECU control(gateway.getSensors());
+    ControlECU control(gateway);
     Dashboard dashboard(control.getControlData());
 
     // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT

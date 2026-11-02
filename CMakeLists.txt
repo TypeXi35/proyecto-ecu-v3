@@ -59,6 +59,7 @@ add_executable(
     ecu_simulator
 
     src/main.cpp
+    include/MonitoredSignal.hpp
 )
 
 target_link_libraries(

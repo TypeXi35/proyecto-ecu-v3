@@ -39,12 +39,14 @@ GatewayECU gatewayAfter(std::size_t cycles) {
 
 // Dibuja un cuadro en memoria en lugar de la pantalla
 std::string render(const GatewayECU& gateway, ECUState controlState, unsigned int cycle = 0) {
+    const FaultCode faultCode = FaultCode::NONE;
     const ECUData controlData{{gateway.findSensor(SignalId::SPEED), gateway.findSensor(SignalId::RPM),
                                gateway.findSensor(SignalId::TEMPERATURE),
                                gateway.findSensor(SignalId::BATTERY_VOLTAGE),
                                gateway.findSensor(SignalId::THROTTLE), gateway.findSensor(SignalId::OIL_PRESSURE)},
                               controlState,
-                              cycle};
+                              cycle,
+                              faultCode};
     std::ostringstream out;
     Dashboard(controlData, out).render();
     return out.str();
