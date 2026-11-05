@@ -17,7 +17,7 @@ private:
     unsigned int cycleCount{0};
     ECUData controlData;
     ECUState newState;
-    FaultCode faultCode;
+    FaultCode faultCode{FaultCode::NONE};
     std::array<const MonitoredSensor, 2> criticalSensors;
     std::array<const MonitoredSensor, 4> nonCriticalSensors;
 

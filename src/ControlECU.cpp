@@ -39,7 +39,7 @@ ControlECU::ControlECU(const GatewayECU &gateway) : currentState(ECUState::INIT)
                                                          gateway.findSensor(SignalId::OIL_PRESSURE)},
                                                         currentState,
                                                         cycleCount,
-                                                        FaultCode::NONE
+                                                        faultCode
                                                     },
                                                     criticalSensors{{
                                                         {controlData.sensors.temperature, TEMPERATURE_OPERATING_MIN_C, TEMPERATURE_OPERATING_MAX_C},
