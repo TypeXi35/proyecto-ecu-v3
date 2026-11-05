@@ -1,4 +1,7 @@
+
 #include "VehicleSimulator.hpp"
+
+#include <algorithm>
 
 VehicleSimulator::VehicleSimulator()
     : 
@@ -15,260 +18,236 @@ VehicleSimulator::VehicleSimulator()
 
 void VehicleSimulator::updateSignal()
 {
-    // Update Normal Behavior
-    // Throttle
+    // Update throttle with a random variation.
     std::uniform_real_distribution<double> throttleChange(-8.0, 8.0);
 
     throttle += throttleChange(generator);
-
     throttle = std::clamp(throttle, 0.0, 100.0);
 
-    // Speed
+    // Adjust speed gradually toward the target speed.
     double targetSpeed = throttle * 1.8;
 
     speed += (targetSpeed - speed) * 0.05;
-
     speed = std::max(0.0, speed);
 
-    // RPM
+    // Calculate RPM based on speed, throttle and noise.
     rpm = 800.0 + speed * 22.0 + throttle * 18.0 + signalNoise(generator) * 50.0;
 
     rpm = std::clamp(rpm, 700.0, 7000.0);
 
-    // Temperature
+    // Adjust temperature gradually toward its target.
     double targetTemperature = 85.0 + throttle * 0.08;
 
     temperature += (targetTemperature - temperature) * 0.01;
-
     temperature += signalNoise(generator) * 0.05;
 
-    // Battery Voltage
+    // Simulate battery voltage fluctuations.
     batteryVoltage = 13.8 + signalNoise(generator) * 0.08;
 
-    // Oil Pressure
+    // Calculate oil pressure based on RPM and noise.
     oilPressure = 1.0 + rpm / 2000.0 + signalNoise(generator) * 0.05;
 
     oilPressure = std::max(0.0, oilPressure);
 
-    // Update Faults
+    // Update fault states after the physical values.
     updateFaults();
 }
 
 void VehicleSimulator::updateFaults()
 {
-    // Update existing faults
-    for (std::size_t i = 0; i < faults.size(); i++)
-    {
-        if (faults[i].remainingCycles > 0)
-        {
-            faults[i].remainingCycles--;
-        }
+    std::vector<SignalId> recoveredSignals;
 
-        // If the fault has ended
-        if (faults[i].remainingCycles == 0)
+    for (SignalFault& fault : faults)
+    {
+        if (fault.type != FaultType::NONE)
         {
-            faults[i].type = FaultType::NONE;
+            if (fault.remainingCycles > 0)
+            {
+                fault.remainingCycles--;
+            }
+
+            if (fault.remainingCycles == 0)
+            {
+                fault.type = FaultType::NONE;
+                recoveredSignals.push_back(fault.id);
+            }
         }
     }
 
-    // If a new failure occurs.
-    // Probability of a new failure
     std::uniform_real_distribution<double> faultChance(0.0, 1.0);
 
     double chance = faultChance(generator);
 
-    if (chance < 0.05)
+    if (chance >= 0.05)
     {
-        // Select signal
-        std::uniform_int_distribution<int> signalChoice(0, 5);
-
-        int selectedSignal = signalChoice(generator);
-
-        SignalId selectedId;
-
-        switch (selectedSignal)
-        {
-            case 0:
-                selectedId = SignalId::SPEED;
-                break;
-
-            case 1:
-                selectedId = SignalId::RPM;
-                break;
-
-            case 2:
-                selectedId = SignalId::TEMPERATURE;
-                break;
-
-            case 3:
-                selectedId = SignalId::THROTTLE;
-                break;
-
-            case 4:
-                selectedId = SignalId::BATTERY_VOLTAGE;
-                break;
-
-            case 5:
-                selectedId = SignalId::OIL_PRESSURE;
-                break;
-        }
-
-        // Check if the signal already has an active fault
-        if (hasActiveFault(selectedId))
-        {
-            return;
-        }
-
-        // Select fault type
-        std::uniform_int_distribution<int> faultChoice(0, 1);
-
-        int selectedFault = faultChoice(generator);
-
-        FaultType selectedType;
-
-        if (selectedFault == 0)
-        {
-            selectedType = FaultType::OUT_OF_RANGE;
-        }
-        else
-        {
-            selectedType = FaultType::MISSING;
-        }
-
-
-        // Select fault duration
-        std::uniform_int_distribution<int> faultDuration(3, 10);
-
-        int duration = faultDuration(generator);
-
-        // Check if the signal already exists
-        bool faultUpdated = false;
-
-        for (std::size_t i = 0; i < faults.size(); i++)
-        {
-            if (faults[i].id == selectedId &&
-                faults[i].type == FaultType::NONE)
-            {
-                // Reuse the existing record
-                faults[i].type = selectedType;
-                faults[i].remainingCycles = duration;
-
-                faultUpdated = true;
-
-                break;
-            }
-        }
-
-        // If the fault doesn't exist, create it
-        if (!faultUpdated)
-        {
-            SignalFault newFault;
-
-            newFault.id = selectedId;
-            newFault.type = selectedType;
-            newFault.remainingCycles = duration;
-
-            faults.push_back(newFault);
-        }
+        return;
     }
+
+    std::uniform_int_distribution<int> signalChoice(0, 5);
+
+    int selectedSignal = signalChoice(generator);
+
+    SignalId selectedId;
+
+    switch (selectedSignal)
+    {
+        case 0:
+            selectedId = SignalId::SPEED;
+            break;
+
+        case 1:
+            selectedId = SignalId::RPM;
+            break;
+
+        case 2:
+            selectedId = SignalId::TEMPERATURE;
+            break;
+
+        case 3:
+            selectedId = SignalId::THROTTLE;
+            break;
+
+        case 4:
+            selectedId = SignalId::BATTERY_VOLTAGE;
+            break;
+
+        case 5:
+            selectedId = SignalId::OIL_PRESSURE;
+            break;
+    }
+
+    bool justRecovered =
+        std::find(
+            recoveredSignals.begin(),
+            recoveredSignals.end(),
+            selectedId) != recoveredSignals.end();
+
+    if (justRecovered)
+    {
+        return;
+    }
+
+    if (hasActiveFault(selectedId))
+    {
+        return;
+    }
+
+    std::uniform_int_distribution<int> faultChoice(0, 1);
+
+    int selectedFault = faultChoice(generator);
+
+    FaultType selectedType;
+
+    if (selectedFault == 0)
+    {
+        selectedType = FaultType::OUT_OF_RANGE;
+    }
+    else
+    {
+        selectedType = FaultType::MISSING;
+    }
+
+    std::uniform_int_distribution<unsigned int> faultDuration(3, 10);
+
+    unsigned int duration = faultDuration(generator);
+
+    activateFault(selectedId, selectedType, duration);
+}
+
+void VehicleSimulator::activateFault(
+    SignalId id,
+    FaultType type,
+    unsigned int duration)
+{
+    if (type == FaultType::NONE || duration == 0)
+    {
+        return;
+    }
+
+    auto foundFault = std::find_if(
+        faults.begin(),
+        faults.end(),
+        [id](const SignalFault& fault)
+        {
+            return fault.id == id;
+        }
+    );
+
+    if (foundFault == faults.end())
+    {
+        faults.push_back({id, type, duration});
+        return;
+    }
+
+    if (foundFault->type != FaultType::NONE)
+    {
+        return;
+    }
+
+    foundFault->type = type;
+    foundFault->remainingCycles = duration;
 }
 
 bool VehicleSimulator::hasActiveFault(SignalId id) const
 {
-    for (std::size_t i = 0; i < faults.size(); i++)
-    {
-        if (faults[i].id == id && faults[i].type != FaultType::NONE)
-        {
-            return true;
-        }
-    }
-
-    return false;
+    return getFaultType(id) != FaultType::NONE;
 }
 
 FaultType VehicleSimulator::getFaultType(SignalId id) const
 {
-    for (std::size_t i = 0; i < faults.size(); i++)
-    {
-        if (faults[i].id == id && faults[i].type != FaultType::NONE)
+    auto foundFault = std::find_if(
+        faults.begin(),
+        faults.end(),
+        [id](const SignalFault& fault)
         {
-            return faults[i].type;
+            return fault.id == id &&
+                   fault.type != FaultType::NONE;
         }
+    );
+
+    if (foundFault != faults.end())
+    {
+        return foundFault->type;
     }
 
     return FaultType::NONE;
 }
 
-void VehicleSimulator::addSignal(
-    std::vector<SignalReading>& signals,
+void VehicleSimulator::addSignalReading(
+    std::vector<SignalReading>& readings,
     SignalId id,
     double normalValue,
     double faultValue) const
 {
-    FaultType fault = getFaultType(id);
+    FaultType faultType = getFaultType(id);
 
-    // Do not send the signal
-    if (fault == FaultType::MISSING)
+    if (faultType == FaultType::MISSING)
     {
         return;
     }
 
-    // Send out-of-range value
-    if (fault == FaultType::OUT_OF_RANGE)
+    double exposedValue = normalValue;
+
+    if (faultType == FaultType::OUT_OF_RANGE)
     {
-        signals.push_back({id, faultValue});
-        return;
+        exposedValue = faultValue;
     }
 
-    // Send normal value
-    signals.push_back({id, normalValue});
+    readings.push_back({id, exposedValue});
 }
 
 std::vector<SignalReading> VehicleSimulator::exposeSignals() const
 {
-    std::vector<SignalReading> signals;
+    // Build the readings available during this cycle.
+    std::vector<SignalReading> readings;
+    readings.reserve(6);
 
-    addSignal(
-        signals,
-        SignalId::THROTTLE,
-        throttle,
-        150.0
-    );
+    addSignalReading(readings, SignalId::THROTTLE, throttle, 150.0);
+    addSignalReading(readings, SignalId::SPEED, speed, 300.0);
+    addSignalReading(readings, SignalId::RPM, rpm, 9500.0);
+    addSignalReading(readings, SignalId::TEMPERATURE, temperature, 200.0);
+    addSignalReading(readings, SignalId::BATTERY_VOLTAGE, batteryVoltage, 20.0);
+    addSignalReading(readings, SignalId::OIL_PRESSURE, oilPressure, 15.0);
 
-    addSignal(
-        signals,
-        SignalId::SPEED,
-        speed,
-        300.0
-    );
-
-    addSignal(
-        signals,
-        SignalId::RPM,
-        rpm,
-        9500.0
-    );
-
-    addSignal(
-        signals,
-        SignalId::TEMPERATURE,
-        temperature,
-        200.0
-    );
-
-    addSignal(
-        signals,
-        SignalId::BATTERY_VOLTAGE,
-        batteryVoltage,
-        20.0
-    );
-
-    addSignal(
-        signals,
-        SignalId::OIL_PRESSURE,
-        oilPressure,
-        15.0
-    );
-
-    return signals;
+    return readings;
 }
