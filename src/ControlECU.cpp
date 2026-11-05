@@ -2,7 +2,6 @@
 
 #include <cmath>
 #include <stdexcept>
-#include <vector>
 #include <algorithm>
 #include "GatewayECU.hpp"
 #include "MonitoredSensor.hpp"
@@ -29,7 +28,6 @@ constexpr double OIL_PRESSURE_OPERATING_MIN_BAR = 0.8;
 constexpr double OIL_PRESSURE_OPERATING_MAX_BAR = 6.0;
 
 ControlECU::ControlECU(const GatewayECU &gateway) : currentState(ECUState::INIT),
-                                                    newState(ECUState::INIT),
                                                     controlData{
                                                         {gateway.findSensor(SignalId::SPEED),
                                                          gateway.findSensor(SignalId::RPM),
@@ -41,14 +39,13 @@ ControlECU::ControlECU(const GatewayECU &gateway) : currentState(ECUState::INIT)
                                                         cycleCount,
                                                         faultCode
                                                     },
-                                                    criticalSensors{{
-                                                        {controlData.sensors.temperature, TEMPERATURE_OPERATING_MIN_C, TEMPERATURE_OPERATING_MAX_C},
-                                                        {controlData.sensors.oilPressure, OIL_PRESSURE_OPERATING_MIN_BAR, OIL_PRESSURE_OPERATING_MAX_BAR}}},
-                                                    nonCriticalSensors{{
-                                                        {controlData.sensors.speed, SPEED_OPERATING_MIN_KMH, SPEED_OPERATING_MAX_KMH},
-                                                        {controlData.sensors.rpm, RPM_OPERATING_MIN, RPM_OPERATING_MAX},
-                                                        {controlData.sensors.throttle, THROTTLE_OPERATING_MIN_PCT, THROTTLE_OPERATING_MAX_PCT},
-                                                        {controlData.sensors.batteryVoltage, BATTERY_OPERATING_MIN_V, BATTERY_OPERATING_MAX_V}}}
+                                                    monitoredSensors{{
+                                                        {controlData.sensors.temperature, TEMPERATURE_OPERATING_MIN_C, TEMPERATURE_OPERATING_MAX_C, Criticality::CRITICAL},
+                                                        {controlData.sensors.oilPressure, OIL_PRESSURE_OPERATING_MIN_BAR, OIL_PRESSURE_OPERATING_MAX_BAR, Criticality::CRITICAL},
+                                                        {controlData.sensors.speed, SPEED_OPERATING_MIN_KMH, SPEED_OPERATING_MAX_KMH, Criticality::NON_CRITICAL},
+                                                        {controlData.sensors.rpm, RPM_OPERATING_MIN, RPM_OPERATING_MAX, Criticality::NON_CRITICAL},
+                                                        {controlData.sensors.throttle, THROTTLE_OPERATING_MIN_PCT, THROTTLE_OPERATING_MAX_PCT, Criticality::NON_CRITICAL},
+                                                        {controlData.sensors.batteryVoltage, BATTERY_OPERATING_MIN_V, BATTERY_OPERATING_MAX_V, Criticality::NON_CRITICAL}}}
 {
 }
 
@@ -61,22 +58,13 @@ void ControlECU::runControlCycle()
         stateTransition(ECUState::SELF_TEST);
         break;
     case ECUState::SELF_TEST:
-        newState = generalHealthCheck();
-        stateTransition(newState);
+        stateTransition(generalHealthCheck());
         break;
     case ECUState::OPERATIONAL:
-        newState = generalHealthCheck();
-        if (newState != currentState)
-        {
-            stateTransition(newState);
-        }
+        stateTransition(generalHealthCheck());
         break;
     case ECUState::DEGRADED:
-        newState = generalHealthCheck();
-        if (newState != currentState)
-        {
-            stateTransition(newState);
-        }
+        stateTransition(generalHealthCheck());
         break;
     case ECUState::SAFE_STATE:
         stateTransition(ECUState::SHUTDOWN);
@@ -91,11 +79,7 @@ void ControlECU::runControlCycle()
 
 bool ControlECU::isUnhealthy(const Sensor &sensor)
 {
-    if (sensor.getState() != SignalState::VALID || sensor.getMissedCycles() > 0)
-    {
-        return true;
-    }
-    return false;
+    return sensor.getState() != SignalState::VALID || sensor.getMissedCycles() > 0;
 }
 
 ECUState ControlECU::generalHealthCheck() const
@@ -123,22 +107,22 @@ bool ControlECU::isOutOfLimits(const MonitoredSensor &monitored)
 
 bool ControlECU::hasCriticalFault() const
 {
-    return std::any_of(criticalSensors.begin(), criticalSensors.end(),
+    return std::any_of(monitoredSensors.begin(), monitoredSensors.end(),
                 [](const MonitoredSensor &monitored){
-                    return monitored.sensor.getState() != SignalState::VALID ||
-                        isOutOfLimits(monitored);
+                    return monitored.criticality == Criticality::CRITICAL && (monitored.sensor.getState() != SignalState::VALID ||
+                        isOutOfLimits(monitored));
                 });
 }
 
 bool ControlECU::isDegraded() const
 {
-    const bool nonCriticalProblem = std::any_of(nonCriticalSensors.begin(), nonCriticalSensors.end(),
+    const bool nonCriticalProblem = std::any_of(monitoredSensors.begin(), monitoredSensors.end(),
         [](const MonitoredSensor &monitored){
-            return isUnhealthy(monitored.sensor) || isOutOfLimits(monitored);
+            return monitored.criticality == Criticality::NON_CRITICAL && (isUnhealthy(monitored.sensor) || isOutOfLimits(monitored));
         });
-    const bool criticalStale = std::any_of(criticalSensors.begin(), criticalSensors.end(),
+    const bool criticalStale = std::any_of(monitoredSensors.begin(), monitoredSensors.end(),
             [](const MonitoredSensor &monitored){
-                return monitored.sensor.getMissedCycles() > 0;
+                return  monitored.criticality == Criticality::CRITICAL && monitored.sensor.getMissedCycles() > 0;
             });
     return nonCriticalProblem || criticalStale;
 }

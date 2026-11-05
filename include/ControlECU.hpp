@@ -7,7 +7,6 @@
 #include "GatewayECU.hpp"
 #include "MonitoredSensor.hpp"
 
-#include <vector>
 #include <array>
 
 class ControlECU
@@ -16,11 +15,9 @@ private:
     ECUState currentState;
     unsigned int cycleCount{0};
     ECUData controlData;
-    ECUState newState;
-    FaultCode faultCode{FaultCode::NONE};
-    std::array<const MonitoredSensor, 2> criticalSensors;
-    std::array<const MonitoredSensor, 4> nonCriticalSensors;
-
+    FaultCode faultCode;
+    std::array<const MonitoredSensor, 6> monitoredSensors;
+    
 public:
     explicit ControlECU(const GatewayECU &gateway);
     void runControlCycle();
