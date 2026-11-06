@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 // Tipos compartidos entre Simulador, Gateway, Control y Dashboard
 enum class SignalId {
     SPEED,
@@ -26,7 +28,15 @@ enum class FaultType
 };
 
 // Lectura de una señal en un ciclo; si no viene en la lista, no llegó
-struct SignalReading {
+struct SignalReading 
+{
     SignalId id;
     double value;
+};
+
+// Lectura de señal codificada
+struct RawSignalReading
+{
+    SignalId id;
+    std::uint16_t value;
 };
