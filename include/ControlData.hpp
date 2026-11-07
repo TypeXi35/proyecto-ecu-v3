@@ -23,7 +23,7 @@ enum class FaultCode{
 
 struct ECUData {
     ControlSensors sensors;
-    const ECUState& currentState;
-    const unsigned int& cycleCount;
-    const FaultCode &faultCode;
+    ECUState currentState;
+    unsigned int cycleCount;
+    FaultCode faultCode;
 };
