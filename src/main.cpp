@@ -22,19 +22,19 @@ int main()
     #endif
     VehicleSimulator simulator;
     GatewayECU gateway;
-    ControlECU control(gateway);
+    ControlECU control;
     Dashboard dashboard(control.getControlData());
 
     // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
     dashboard.render();
     std::this_thread::sleep_for(CYCLE_PERIOD);
 
-    // Corre hasta que la Control llega a SAFE_STATE; el último cuadro ya muestra ese estado
+    // Corre hasta que la Control llega a SHUTDOWN; el último cuadro ya muestra ese estado
     while (control.getControlData().currentState != ECUState::SHUTDOWN)
     {
         simulator.updateSignal();
         gateway.processCycle(simulator.exposeSignals());
-        control.runControlCycle();
+        control.runControlCycle(gateway.getSensors());
         dashboard.render();
         std::this_thread::sleep_for(CYCLE_PERIOD);
     }

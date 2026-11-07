@@ -4,12 +4,12 @@
 #include "ECUState.hpp"
 
 struct ControlSensors {
-    const Sensor& speed;
-    const Sensor& rpm;
-    const Sensor& temperature;
-    const Sensor& batteryVoltage;
-    const Sensor& throttle;
-    const Sensor& oilPressure;
+    Sensor speed;
+    Sensor rpm;
+    Sensor temperature;
+    Sensor batteryVoltage;
+    Sensor throttle;
+    Sensor oilPressure;
 };
 
 enum class FaultCode{
@@ -23,7 +23,7 @@ enum class FaultCode{
 
 struct ECUData {
     ControlSensors sensors;
-    const ECUState& currentState;
-    const unsigned int& cycleCount;
-    const FaultCode &faultCode;
+    ECUState currentState;
+    unsigned int cycleCount;
+    FaultCode faultCode;
 };
