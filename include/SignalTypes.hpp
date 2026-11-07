@@ -7,7 +7,8 @@ enum class SignalId {
     TEMPERATURE,
     THROTTLE,
     BATTERY_VOLTAGE,
-    OIL_PRESSURE
+    OIL_PRESSURE,
+    DEFAULT
 };
 
 // Estado de validez que determina la Gateway

@@ -7,6 +7,7 @@
 // Guarda el valor de una señal y se valida a sí mismo
 class Sensor {
 public:
+    Sensor() = default;
     // Inicia en 0.0 y NOT_AVAILABLE; maxMissed = ciclos sin dato tolerados
     Sensor(SignalId signalId, std::string signalUnit, double minimum, double maximum,
            unsigned int maxMissed);
@@ -29,12 +30,12 @@ private:
     // Determina el estado según el valor actual
     void validate();
 
-    SignalId id;
+    SignalId id{SignalId::DEFAULT};
     std::string unit;
     double value{0.0};
-    double minValue;
-    double maxValue;
+    double minValue{0.0};
+    double maxValue{0.0};
     unsigned int missedCycles{0};
-    unsigned int maxMissedCycles;
+    unsigned int maxMissedCycles{0};
     SignalState state{SignalState::NOT_AVAILABLE};
 };

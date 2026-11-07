@@ -4,7 +4,6 @@
 #include "Sensor.hpp"
 #include "ECUState.hpp"
 #include "SignalTypes.hpp"
-#include "GatewayECU.hpp"
 #include "MonitoredSensor.hpp"
 
 #include <vector>
@@ -16,17 +15,16 @@ private:
     ECUState currentState;
     unsigned int cycleCount{0};
     ECUData controlData;
-    ECUState newState;
-    FaultCode faultCode{FaultCode::NONE};
-    std::array<const MonitoredSensor, 2> criticalSensors;
-    std::array<const MonitoredSensor, 4> nonCriticalSensors;
-
+    FaultCode faultCode;
+    std::array<const MonitoredSensor, 6> monitoredSensors;
+    
 public:
-    explicit ControlECU(const GatewayECU &gateway);
-    void runControlCycle();
+    ControlECU();
+    void runControlCycle(const std::vector<Sensor> &sensors);
     const ECUData &getControlData() const;
 
 private:
+    void loadSensors(const std::vector<Sensor> &sensors);
     ECUState generalHealthCheck() const;
     static bool isUnhealthy(const Sensor &sensor);
     static bool isOutOfLimits(const MonitoredSensor &monitored);
