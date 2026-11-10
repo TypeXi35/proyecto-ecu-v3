@@ -21,7 +21,6 @@ add_library(
     src/GatewayECU.cpp
     src/Sensor.cpp
     src/VehicleSimulator.cpp
-    src/SignalScaling.cpp
 )
 
 target_include_directories(

@@ -1,9 +1,8 @@
 #pragma once
 
-#include <cstdint>
-
 // Tipos compartidos entre Simulador, Gateway, Control y Dashboard
-enum class SignalId {
+enum class SignalId
+{
     SPEED,
     RPM,
     TEMPERATURE,
@@ -14,7 +13,8 @@ enum class SignalId {
 };
 
 // Estado de validez que determina la Gateway
-enum class SignalState {
+enum class SignalState
+{
     VALID,
     OUT_OF_RANGE,
     NOT_AVAILABLE   // Sin primer dato o dejó de actualizarse
@@ -33,11 +33,4 @@ struct SignalReading
 {
     SignalId id;
     double value;
-};
-
-// Lectura de señal codificada
-struct RawSignalReading
-{
-    SignalId id;
-    std::uint16_t value;
 };

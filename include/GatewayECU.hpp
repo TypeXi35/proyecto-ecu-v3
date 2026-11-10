@@ -1,31 +1,57 @@
+
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "Sensor.hpp"
 #include "SignalTypes.hpp"
 
-// Recibe las señales y determina si son confiables
+// Scaling parameters for each signal.
+struct ScalingConfig
+{
+    double factor;
+    double offset;
+};
+
+// Receives, processes and validates vehicle signals.
 class GatewayECU
 {
-public:
-    // Crea los sensores con sus rangos válidos
-    GatewayECU();
+    private:
+        // Sensors managed by the Gateway.
+        std::vector<Sensor> sensors;
 
-    // Actualiza los sensores con lectura y registra ciclo sin dato en los demás
-    void processCycle(const std::vector<SignalReading> &readings);
+        // Gets the scaling parameters for a signal.
+        static bool getScalingConfig(
+            SignalId id,
+            ScalingConfig &config);
 
-    // Acceso de solo lectura a los sensores
-    const std::vector<Sensor> &getSensors() const;
+        // Converts a physical value into a raw value.
+        static bool encode(
+            SignalId id,
+            double physicalValue,
+            std::uint16_t &rawValue);
 
-    // Busca un sensor por ID, si no existe da std::out_of_range
-    const Sensor &findSensor(SignalId id) const;
+        // Converts a raw value into a physical value.
+        static bool decode(
+            SignalId id,
+            std::uint16_t rawValue,
+            double &physicalValue);
 
-    // Cuenta las señales que no están en VALID
-    std::size_t countInvalidSignals() const;
+    public:
+        // Creates sensors with their valid operating ranges.
+        GatewayECU();
 
-private:
-    // La Gateway es dueña de los sensores
-    std::vector<Sensor> sensors;
+        // Processes physical readings and updates sensor states.
+        void processCycle(const std::vector<SignalReading> &readings);
+
+        // Provides read-only access to the sensors.
+        const std::vector<Sensor> &getSensors() const;
+
+        // Finds a sensor by its ID.
+        const Sensor &findSensor(SignalId id) const;
+
+        // Counts sensors that are not in VALID state.
+        std::size_t countInvalidSignals() const;
 };
