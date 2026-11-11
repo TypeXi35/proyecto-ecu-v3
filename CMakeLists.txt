@@ -97,3 +97,37 @@ target_link_libraries(
 
     ecu_core
 )
+
+# ---------------- Configuracion de GoogleTest ----------------
+#Activar CTest
+enable_testing()
+
+#Descarga GoogleTest y lo compila con el proyecto
+include(FetchContent)
+FetchContent_Declare(
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+)
+
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(googletest)
+
+#Ejecutable de pruebas de la ECU de Control
+add_executable(
+    control_tests
+    tests/control_tests.cpp
+)
+
+target_link_libraries(
+    control_tests
+    PRIVATE
+    ecu_core
+    GTest::gtest_main
+)
+
+# Registrar TEST() en CTest
+
+include(GoogleTest)
+gtest_discover_tests(control_tests)
