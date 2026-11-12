@@ -8,9 +8,31 @@ project(
     LANGUAGES CXX
 )
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_FIND_DEBUG_MODE ON)
+include(FetchContent)
+
+### FTXUI(https://github.com/ArthurSonzogni/ftxui-starter/blob/52af91f09891444e86f3974cb8d6e195d3e10653/CMakeLists.txt#L13)
+# try to use distro's ftxui :)))
+find_package(ftxui)
+
+if (NOT ftxui_FOUND)
+    # fallback to FetchContent
+    set(FETCHCONTENT_UPDATES_DISCONNECTED ON)
+    set(FETCHCONTENT_QUIET OFF)
+
+    FetchContent_Declare(ftxui
+        GIT_REPOSITORY https://github.com/arthursonzogni/ftxui.git
+        GIT_TAG        v7.0.3
+        GIT_PROGRESS   TRUE
+        GIT_SHALLOW    TRUE
+        EXCLUDE_FROM_ALL
+    )
+    FetchContent_MakeAvailable(ftxui)
+endif()
+###
 
 add_library(
     ecu_core
@@ -21,6 +43,12 @@ add_library(
     src/GatewayECU.cpp
     src/Sensor.cpp
     src/VehicleSimulator.cpp
+)
+target_link_libraries(
+    ecu_core PUBLIC
+    ftxui::screen
+    ftxui::dom
+    ftxui::component
 )
 
 target_include_directories(
