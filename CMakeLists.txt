@@ -69,35 +69,6 @@ target_link_libraries(
     ecu_core
 )
 
-# Pruebas de la Gateway y del Dashboard con un guion de datos fijos
-add_executable(
-    gateway_tests
-
-    tests/gateway_tests.cpp
-)
-
-target_link_libraries(
-    gateway_tests
-
-    PRIVATE
-
-    ecu_core
-)
-
-add_executable(
-    dashboard_tests
-
-    tests/dashboard_tests.cpp
-)
-
-target_link_libraries(
-    dashboard_tests
-
-    PRIVATE
-
-    ecu_core
-)
-
 # ---------------- Configuracion de GoogleTest ----------------
 #Activar CTest
 enable_testing()
@@ -107,6 +78,7 @@ include(FetchContent)
 FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.17.0.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -131,3 +103,42 @@ target_link_libraries(
 
 include(GoogleTest)
 gtest_discover_tests(control_tests)
+
+
+# ---------------- VehicleSimulator Google Test ----------------
+
+# Ejecutable de pruebas VehicleSimulator.
+add_executable(
+    vehicleSimulator_test
+    tests/vehicleSimulator_test.cpp
+)
+
+# Vincula el proyecto y las bibliotecas de Google Test.
+target_link_libraries(
+    vehicleSimulator_test
+    PRIVATE
+    ecu_core
+    GTest::gtest_main
+)
+
+# Registrar las pruebas de VehicleSimulator en CTest.
+gtest_discover_tests(vehicleSimulator_test)
+
+# ---------------- GatewayECU Google Test ----------------
+
+# Ejecutable de pruebas de la GatewayECU.
+add_executable(
+    gateway_test
+    tests/gateway_test.cpp
+)
+
+# Vincula el proyecto y las bibliotecas de Google Test.
+target_link_libraries(
+    gateway_test
+    PRIVATE
+    ecu_core
+    GTest::gtest_main
+)
+
+# Registrar las pruebas de GatewayECU en CTest.
+gtest_discover_tests(gateway_test)
