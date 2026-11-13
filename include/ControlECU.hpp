@@ -22,8 +22,9 @@ public:
     ControlECU();
     void runControlCycle(const std::vector<Sensor> &sensors);
     const ECUData &getControlData() const;
-
+    
 private:
+    void controlDataUpdate();
     void loadSensors(const std::vector<Sensor> &sensors);
     ECUState generalHealthCheck() const;
     static bool isUnhealthy(const Sensor &sensor);
