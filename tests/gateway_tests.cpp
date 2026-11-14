@@ -392,19 +392,6 @@ void testCountInvalidSignals() {
 // Los estados esperados del recorrido cuentan los ciclos sin dato con este límite
 static_assert(MAX_MISSED_CYCLES == 3, "los estados esperados del recorrido suponen MAX_MISSED_CYCLES == 3");
 
-// Nombre de la señal para los mensajes
-std::string signalText(SignalId id) {
-    switch (id) {
-        case SignalId::SPEED:           return "velocidad";
-        case SignalId::RPM:             return "rpm";
-        case SignalId::TEMPERATURE:     return "temperatura";
-        case SignalId::THROTTLE:        return "acelerador";
-        case SignalId::BATTERY_VOLTAGE: return "bateria";
-        case SignalId::OIL_PRESSURE:    return "aceite";
-    }
-    return "desconocida";
-}
-
 void testDriveScenario() {
     std::cout << "\n-- Recorrido con el guion de tests/DriveScenario.hpp --\n";
 
