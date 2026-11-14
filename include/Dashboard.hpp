@@ -1,22 +1,33 @@
 #pragma once
 
-#include <iostream>
-#include <ostream>
+#include <map>
+#include <string>
+#include <ftxui/component/app.hpp>
 
 #include "ControlData.hpp"
 #include "ECUState.hpp"
 
-// Tablero de instrumentos en terminal, muestra el estado de las señales y el de la ECU de Control
-// No decide ningún estado
 class Dashboard {
-public:
-    // Dibuja en la pantalla, las pruebas le pasan otro destino
-    explicit Dashboard(const ECUData& sourceData, std::ostream& output = std::cout);
+    private:
+        inline static auto const stateLabels = []{
+            using enum ECUState;
+            return std::map<const ECUState, std::string>({
+                // {OFF, "off"},
+                {INIT, "init"},
+                {SELF_TEST, "self-test"},
+                {OPERATIONAL, "operational"},
+                {DEGRADED, "degraded"},
+                {SAFE_STATE, "safe state"},
+                {SHUTDOWN, "shutdown"}
+            });
+        }();
+        ECUData currentEcu{};
+        ftxui::App screen;
 
-    // Dibuja un cuadro con relojes para velocidad y RPM
-    void render() const;
+    public:
+        Dashboard();
+        ~Dashboard();
 
-private:
-    const ECUData& controlData;
-    std::ostream& out;
+        void postUpdate(const ECUData& ecu);
+        void renderLoop();
 };

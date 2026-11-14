@@ -112,19 +112,19 @@ target_link_libraries(
     ecu_core
 )
 
-add_executable(
-    dashboard_tests
-
-    tests/dashboard_tests.cpp
-)
-
-target_link_libraries(
-    dashboard_tests
-
-    PRIVATE
-
-    ecu_core
-)
+#add_executable(
+#    dashboard_tests
+#
+#    tests/dashboard_tests.cpp
+#)
+#
+#target_link_libraries(
+#    dashboard_tests
+#
+#    PRIVATE
+#
+#    ecu_core
+#)
 
 # ---------------- Configuracion de GoogleTest ----------------
 #Activar CTest

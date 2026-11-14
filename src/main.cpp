@@ -16,28 +16,42 @@ constexpr std::chrono::milliseconds CYCLE_PERIOD{500};
 
 int main()
 {
-    #ifdef _WIN32
-        SetConsoleOutputCP(CP_UTF8);
-        SetConsoleCP(CP_UTF8);
-    #endif
     VehicleSimulator simulator;
     GatewayECU gateway;
     ControlECU control;
-    Dashboard dashboard(control.getControlData());
+    Dashboard dashboard;
+    dashboard.postUpdate(control.getControlData());
 
-    // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
-    dashboard.render();
+/*     // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
+    dashboard.renderLoop();
     std::this_thread::sleep_for(CYCLE_PERIOD);
 
-    // Corre hasta que la Control llega a SHUTDOWN; el último cuadro ya muestra ese estado
+    
     while (control.getControlData().currentState != ECUState::SHUTDOWN)
     {
         simulator.updateSignal();
         gateway.processCycle(simulator.exposeSignals());
         control.runControlCycle(gateway.getSensors());
-        dashboard.render();
+        dashboard.postUpdate(control.getControlData());
         std::this_thread::sleep_for(CYCLE_PERIOD);
-    }
+    } */
+
+    std::thread worker([&simulator, &gateway, &control, &dashboard] {
+        // Corre hasta que la Control llega a SHUTDOWN; el último cuadro ya muestra ese estado
+        while (control.getControlData().currentState != ECUState::SHUTDOWN) {
+            simulator.updateSignal();
+            gateway.processCycle(simulator.exposeSignals());
+            control.runControlCycle(gateway.getSensors());
+
+            dashboard.postUpdate(control.getControlData());
+
+            std::this_thread::sleep_for(CYCLE_PERIOD);
+        }
+    });
+
+    dashboard.renderLoop();
+
+    if (worker.joinable()) {worker.join();}
 
     std::cout << "ECU de Control en SHUTDOWN, simulación detenida\n";
     return EXIT_FAILURE;
