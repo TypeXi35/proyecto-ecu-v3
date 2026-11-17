@@ -78,6 +78,8 @@ void ControlECU::runControlCycle(const std::vector<Sensor> &sensors)
         stateTransition(ECUState::SAFE_STATE);
         break;
     }
+    controlData.currentState = currentState;
+    controlData.cycleCount = cycleCount;
 }
 
 bool ControlECU::isUnhealthy(const Sensor &sensor)
