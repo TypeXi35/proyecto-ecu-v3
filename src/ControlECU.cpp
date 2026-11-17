@@ -5,11 +5,10 @@
 #include "MonitoredSensor.hpp"
 #include "OperationalLimits.hpp"
 
-ControlECU::ControlECU() : currentState(ECUState::INIT),
-                           controlData{
+ControlECU::ControlECU() : controlData{
                                {},
-                               currentState,
-                               cycleCount,
+                               ECUState::INIT,
+                               0,
                                FaultCode::NONE},
                            monitoredSensors{{{controlData.sensors.temperature, TEMPERATURE_OPERATING_MIN_C, TEMPERATURE_OPERATING_MAX_C, Criticality::CRITICAL},
                                              {controlData.sensors.oilPressure, OIL_PRESSURE_OPERATING_MIN_BAR, OIL_PRESSURE_OPERATING_MAX_BAR, Criticality::CRITICAL},
@@ -53,9 +52,8 @@ void ControlECU::loadSensors(const std::vector<Sensor> &sensors)
 
 void ControlECU::runControlCycle(const std::vector<Sensor> &sensors)
 {
-    ++cycleCount;
     loadSensors(sensors);
-    switch (currentState)
+    switch (controlData.currentState)
     {
     case ECUState::INIT:
         stateTransition(ECUState::SELF_TEST);
@@ -78,8 +76,7 @@ void ControlECU::runControlCycle(const std::vector<Sensor> &sensors)
         stateTransition(ECUState::SAFE_STATE);
         break;
     }
-    controlData.currentState = currentState;
-    controlData.cycleCount = cycleCount;
+    ++controlData.cycleCount;
 }
 
 bool ControlECU::isUnhealthy(const Sensor &sensor)
@@ -149,7 +146,7 @@ bool ControlECU::isIncoherent() const
 
 void ControlECU::stateTransition(ECUState nextState)
 {
-    currentState = nextState;
+    controlData.currentState = nextState;
 }
 
 const ECUData &ControlECU::getControlData() const
