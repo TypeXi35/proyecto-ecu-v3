@@ -40,5 +40,5 @@ int main()
     }
 
     std::cout << "ECU de Control en SHUTDOWN, simulación detenida\n";
-    return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
