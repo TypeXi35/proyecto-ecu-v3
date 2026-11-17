@@ -20,24 +20,11 @@ int main()
     GatewayECU gateway;
     ControlECU control;
     Dashboard dashboard;
+    // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
     dashboard.postUpdate(control.getControlData());
 
-/*     // Ciclo 0: todavía no llega ninguna señal y la Control está en INIT
-    dashboard.renderLoop();
-    std::this_thread::sleep_for(CYCLE_PERIOD);
-
-    
-    while (control.getControlData().currentState != ECUState::SHUTDOWN)
-    {
-        simulator.updateSignal();
-        gateway.processCycle(simulator.exposeSignals());
-        control.runControlCycle(gateway.getSensors());
-        dashboard.postUpdate(control.getControlData());
-        std::this_thread::sleep_for(CYCLE_PERIOD);
-    } */
-
     std::thread worker([&simulator, &gateway, &control, &dashboard] {
-        // Corre hasta que la Control llega a SHUTDOWN; el último cuadro ya muestra ese estado
+        // Corre hasta que la Control llega a SHUTDOWN
         while (control.getControlData().currentState != ECUState::SHUTDOWN) {
             simulator.updateSignal();
             gateway.processCycle(simulator.exposeSignals());
