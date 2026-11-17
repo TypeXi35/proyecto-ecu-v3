@@ -54,5 +54,5 @@ int main()
     if (worker.joinable()) {worker.join();}
 
     std::cout << "ECU de Control en SHUTDOWN, simulación detenida\n";
-    return EXIT_FAILURE;
+    return EXIT_SUCCESS;
 }
