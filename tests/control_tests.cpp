@@ -7,12 +7,6 @@
 
 namespace
 {
-    class ControlECUTest : public testing::Test
-    {
-        protected:
-        ControlECU control;
-        const ECUData &data = control.getControlData();
-    };
     // Valid values inside every operating range
     constexpr double HEALTHY_SPEED = 60.0;
     constexpr double HEALTHY_THROTTLE = 35.0;
@@ -106,6 +100,34 @@ namespace
             receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
         };
     }
+
+    // Healthy, except a critical fault (temperature above 110 C) and a degraded one (battery below 11.5 V) at once
+    std::vector<Sensor> criticalAndDegradedSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, TEMPERATURE_ABOVE_MAX),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, BATTERY_BELOW_MIN),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Below the setup functions, because reachOperational() uses healthySensors()
+    class ControlECUTest : public testing::Test
+    {
+    protected:
+        ControlECU control;
+        const ECUData &data = control.getControlData();
+
+        // INIT -> SELF_TEST -> OPERATIONAL, with healthy sensors
+        void reachOperational()
+        {
+            control.runControlCycle(healthySensors());
+            control.runControlCycle(healthySensors());
+        }
+    };
 }
 
 TEST_F(ControlECUTest, StartsInInit)
@@ -139,8 +161,36 @@ TEST_F(ControlECUTest, HealthyCycleUpdate)
     EXPECT_EQ(data.sensors.throttle.getValue(), HEALTHY_THROTTLE);
 }
 
-TEST_F(ControlECUTest, CriticalValuesTest){
+// Critical Conditions Block
+TEST_F(ControlECUTest, oilAboveMaxSensorsTest){
     control.runControlCycle(oilAboveMaxSensors());
     control.runControlCycle(oilAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
 }
+
+TEST_F(ControlECUTest, oilBelowMaxSensorsTest){
+    control.runControlCycle(oilAboveMaxSensors());
+    control.runControlCycle(oilAboveMaxSensors());
+    EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+}
+
+
+TEST_F(ControlECUTest, temperatureAboveMaxSensorsTest){
+    reachOperational();
+    control.runControlCycle(temperatureAboveMaxSensors());
+    EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+}
+
+TEST_F(ControlECUTest, temperatureBelowMinSensorsTest){
+    reachOperational();
+    control.runControlCycle(temperatureBelowMinSensors());
+    EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+}
+
+TEST_F(ControlECUTest, CriticalConditionShortCircuitTest){
+    reachOperational();
+    control.runControlCycle(criticalAndDegradedSensors());
+    EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+}
+
+// Degraded Conditions Block
