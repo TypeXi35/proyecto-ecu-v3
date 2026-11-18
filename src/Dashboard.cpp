@@ -36,13 +36,14 @@ void Dashboard::renderLoop() {
             double const max = sensor->getMax();
             double const rate = (value - min)/(max - min);
 
-            Decorator const couleur = color([&]{
+            Decorator const couleur = color([&sensor]{
+                using enum SignalState;
                 using enum ftxui::Color::Palette256;
-                return SeaGreen1;
-                /*
-                return (!sensor->getState())? Red1
-                      :(rate > 0.9 || rate < 0.1)? Yellow1
-                      :SeaGreen1;*/
+                switch (sensor->getState()) {
+                    case NOT_AVAILABLE: return Yellow1;
+                    case OUT_OF_RANGE: return Red1;
+                    case VALID: default: return SeaGreen1;
+                }
             }());
 
             return hbox(
