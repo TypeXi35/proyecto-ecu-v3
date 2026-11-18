@@ -31,6 +31,9 @@ namespace
     constexpr double BATTERY_BELOW_MIN = 11.4;   // min 11.5 V
     constexpr double BATTERY_ABOVE_MAX = 15.1;   // max 15 V
 
+    // Valid speed that doesn't match HEALTHY_RPM and HEALTHY_THROTTLE: they predict 60 km/h, more than 15 km/h off
+    constexpr double INCOHERENT_SPEED = 100.0;
+
     Sensor receivedSensor(SignalId id, double min, double max, double value)
     {
         Sensor sensor(id, "", min, max, MAX_MISSED_CYCLES);
@@ -108,6 +111,123 @@ namespace
             receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
             receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
             receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, TEMPERATURE_ABOVE_MAX),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, BATTERY_BELOW_MIN),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except speed below its operating minimum (0 km/h)
+    std::vector<Sensor> speedBelowMinSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, SPEED_BELOW_MIN),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, HEALTHY_BATTERY),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except speed above its operating maximum (200 km/h)
+    std::vector<Sensor> speedAboveMaxSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, SPEED_ABOVE_MAX),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, HEALTHY_BATTERY),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except RPM below its operating minimum (0 rpm)
+    std::vector<Sensor> rpmBelowMinSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, RPM_BELOW_MIN),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, HEALTHY_BATTERY),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except RPM above its operating maximum (6800 rpm)
+    std::vector<Sensor> rpmAboveMaxSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, RPM_ABOVE_MAX),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, HEALTHY_BATTERY),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except throttle below its operating minimum (0 %)
+    std::vector<Sensor> throttleBelowMinSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, THROTTLE_BELOW_MIN),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, HEALTHY_BATTERY),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except throttle above its operating maximum (100 %)
+    std::vector<Sensor> throttleAboveMaxSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, THROTTLE_ABOVE_MAX),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, HEALTHY_BATTERY),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except battery voltage below its operating minimum (11.5 V)
+    std::vector<Sensor> batteryBelowMinSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, BATTERY_BELOW_MIN),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except battery voltage above its operating maximum (15 V)
+    std::vector<Sensor> batteryAboveMaxSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, HEALTHY_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
+            receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
+            receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, BATTERY_ABOVE_MAX),
+            receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
+        };
+    }
+
+    // Healthy, except a degraded fault (battery below 11.5 V) and incoherent signals (speed 100 km/h) at once
+    std::vector<Sensor> degradedAndIncoherentSensors()
+    {
+        return {
+            receivedSensor(SignalId::SPEED, SPEED_MIN_KMH, SPEED_MAX_KMH, INCOHERENT_SPEED),
+            receivedSensor(SignalId::RPM, RPM_MIN, RPM_MAX, HEALTHY_RPM),
+            receivedSensor(SignalId::TEMPERATURE, TEMP_MIN_C, TEMP_MAX_C, HEALTHY_TEMPERATURE),
             receivedSensor(SignalId::THROTTLE, THROTTLE_MIN_PCT, THROTTLE_MAX_PCT, HEALTHY_THROTTLE),
             receivedSensor(SignalId::BATTERY_VOLTAGE, VOLTAGE_MIN_V, VOLTAGE_MAX_V, BATTERY_BELOW_MIN),
             receivedSensor(SignalId::OIL_PRESSURE, OIL_PRESSURE_MIN_BAR, OIL_PRESSURE_MAX_BAR, HEALTHY_OIL),
@@ -194,3 +314,57 @@ TEST_F(ControlECUTest, CriticalConditionShortCircuitTest){
 }
 
 // Degraded Conditions Block
+TEST_F(ControlECUTest, speedBelowMinSensorsTest){
+    reachOperational();
+    control.runControlCycle(speedBelowMinSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, speedAboveMaxSensorsTest){
+    reachOperational();
+    control.runControlCycle(speedAboveMaxSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, rpmBelowMinSensorsTest){
+    reachOperational();
+    control.runControlCycle(rpmBelowMinSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, rpmAboveMaxSensorsTest){
+    reachOperational();
+    control.runControlCycle(rpmAboveMaxSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, throttleBelowMinSensorsTest){
+    reachOperational();
+    control.runControlCycle(throttleBelowMinSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, throttleAboveMaxSensorsTest){
+    reachOperational();
+    control.runControlCycle(throttleAboveMaxSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, batteryBelowMinSensorsTest){
+    reachOperational();
+    control.runControlCycle(batteryBelowMinSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+TEST_F(ControlECUTest, batteryAboveMaxSensorsTest){
+    reachOperational();
+    control.runControlCycle(batteryAboveMaxSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
+
+// The degraded check runs before the coherence check, so it wins
+TEST_F(ControlECUTest, DegradedConditionShortCircuitTest){
+    reachOperational();
+    control.runControlCycle(degradedAndIncoherentSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+}
