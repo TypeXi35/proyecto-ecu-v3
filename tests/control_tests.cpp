@@ -283,7 +283,7 @@ TEST_F(ControlECUTest, HealthyCycleUpdate)
     EXPECT_EQ(data.sensors.throttle.getValue(), HEALTHY_THROTTLE);
 }
 
-TEST(ControlECUTest, HealthySensorsBecomeOperationalAfterSelfTest)
+TEST_F(ControlECUTest, HealthySensorsBecomeOperationalAfterSelfTest)
 {
     ControlECU control;
     const auto sensors = healthySensors();
