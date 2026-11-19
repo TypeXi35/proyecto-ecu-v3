@@ -13,7 +13,6 @@ class ControlECU
 {
 private:
     ECUData controlData;
-    FaultCode faultCode;
     std::array<const MonitoredSensor, 6> monitoredSensors;
     
 public:

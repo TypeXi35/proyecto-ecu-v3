@@ -19,12 +19,6 @@ ControlECU::ControlECU() : controlData{
 {
 }
 
-void ControlECU::controlDataUpdate(){
-    controlData.cycleCount = cycleCount;
-    controlData.currentState = currentState;
-    controlData.faultCode = faultCode;
-}
-
 void ControlECU::loadSensors(const std::vector<Sensor> &sensors)
 {
     controlData.sensors = ControlSensors{};
