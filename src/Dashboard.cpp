@@ -1,11 +1,7 @@
 #include "Dashboard.hpp"
 
-#include <algorithm>
-#include <cstdlib>
 #include <format>
 #include <ftxui/ftxui.hpp>
-#include <iomanip>
-#include <iostream>
 #include <ranges>
 #include <array>
 #include <ControlData.hpp>
@@ -33,6 +29,7 @@ ftxui::Color sensorColour(SignalState sensorState) {
 }
 
 ftxui::Canvas arc(Sensor& sensor, int size = 50) {
+    static double const pi = std::numbers::pi;
     int const width = size; int const height = width/2;
     int const cx = height; int const cy = height; int const radius = height;
     ftxui::Canvas c(width, height);
@@ -43,9 +40,9 @@ ftxui::Canvas arc(Sensor& sensor, int size = 50) {
     double const rate = (value - min)/(max - min);
     auto const color = sensorColour(sensor.getState());
     
-    double const startAngle = M_PI;
+    double const startAngle = pi;
     // [1,2) will be a 
-    double const endAngle = (1+rate) * M_PI;
+    double const endAngle = (1+rate) * pi;
     int const segments = radius * 4;
 
     int prevX = cx + static_cast<int>(std::round(radius * std::cos(startAngle)));
