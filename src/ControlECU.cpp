@@ -5,11 +5,10 @@
 #include "MonitoredSensor.hpp"
 #include "OperationalLimits.hpp"
 
-ControlECU::ControlECU() : currentState(ECUState::INIT),
-                           controlData{
+ControlECU::ControlECU() : controlData{
                                {},
-                               currentState,
-                               cycleCount,
+                               ECUState::INIT,
+                               0,
                                FaultCode::NONE},
                            monitoredSensors{{{controlData.sensors.temperature, TEMPERATURE_OPERATING_MIN_C, TEMPERATURE_OPERATING_MAX_C, Criticality::CRITICAL},
                                              {controlData.sensors.oilPressure, OIL_PRESSURE_OPERATING_MIN_BAR, OIL_PRESSURE_OPERATING_MAX_BAR, Criticality::CRITICAL},
@@ -18,12 +17,6 @@ ControlECU::ControlECU() : currentState(ECUState::INIT),
                                              {controlData.sensors.throttle, THROTTLE_OPERATING_MIN_PCT, THROTTLE_OPERATING_MAX_PCT, Criticality::NON_CRITICAL},
                                              {controlData.sensors.batteryVoltage, BATTERY_OPERATING_MIN_V, BATTERY_OPERATING_MAX_V, Criticality::NON_CRITICAL}}}
 {
-}
-
-void ControlECU::controlDataUpdate(){
-    controlData.cycleCount = cycleCount;
-    controlData.currentState = currentState;
-    controlData.faultCode = faultCode;
 }
 
 void ControlECU::loadSensors(const std::vector<Sensor> &sensors)
@@ -59,9 +52,8 @@ void ControlECU::loadSensors(const std::vector<Sensor> &sensors)
 
 void ControlECU::runControlCycle(const std::vector<Sensor> &sensors)
 {
-    ++cycleCount;
     loadSensors(sensors);
-    switch (currentState)
+    switch (controlData.currentState)
     {
     case ECUState::INIT:
         stateTransition(ECUState::SELF_TEST);
@@ -84,7 +76,7 @@ void ControlECU::runControlCycle(const std::vector<Sensor> &sensors)
         stateTransition(ECUState::SAFE_STATE);
         break;
     }
-    controlDataUpdate();
+    ++controlData.cycleCount;
 }
 
 bool ControlECU::isUnhealthy(const Sensor &sensor)
@@ -154,7 +146,7 @@ bool ControlECU::isIncoherent() const
 
 void ControlECU::stateTransition(ECUState nextState)
 {
-    currentState = nextState;
+    controlData.currentState = nextState;
 }
 
 const ECUData &ControlECU::getControlData() const

@@ -1,4 +1,5 @@
 #pragma once
+#include <string>
 
 // Tipos compartidos entre Simulador, Gateway, Control y Dashboard
 enum class SignalId
@@ -11,6 +12,19 @@ enum class SignalId
     OIL_PRESSURE,
     DEFAULT
 };
+
+// Nombre de la señal para los mensajes
+inline std::string signalText(SignalId id) {
+    switch (id) {
+        case SignalId::SPEED:           return "velocidad";
+        case SignalId::RPM:             return "rpm";
+        case SignalId::TEMPERATURE:     return "temperatura";
+        case SignalId::THROTTLE:        return "acelerador";
+        case SignalId::BATTERY_VOLTAGE: return "bateria";
+        case SignalId::OIL_PRESSURE:    return "aceite";
+        default:                        return "desconocida";
+    }
+}
 
 // Estado de validez que determina la Gateway
 enum class SignalState

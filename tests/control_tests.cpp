@@ -273,6 +273,8 @@ TEST_F(ControlECUTest, StartsWithEmptySensors)
 TEST_F(ControlECUTest, HealthyCycleUpdate)
 {
     control.runControlCycle(healthySensors());
+    EXPECT_EQ(data.currentState, ECUState::SELF_TEST);
+    EXPECT_EQ(data.cycleCount, 1);
     EXPECT_EQ(data.sensors.batteryVoltage.getValue(), HEALTHY_BATTERY);
     EXPECT_EQ(data.sensors.oilPressure.getValue(), HEALTHY_OIL);
     EXPECT_EQ(data.sensors.rpm.getValue(), HEALTHY_RPM);
@@ -280,6 +282,19 @@ TEST_F(ControlECUTest, HealthyCycleUpdate)
     EXPECT_EQ(data.sensors.temperature.getValue(), HEALTHY_TEMPERATURE);
     EXPECT_EQ(data.sensors.throttle.getValue(), HEALTHY_THROTTLE);
 }
+
+TEST_F(ControlECUTest, HealthySensorsBecomeOperationalAfterSelfTest)
+{
+    ControlECU control;
+    const auto sensors = healthySensors();
+
+    control.runControlCycle(sensors);
+    control.runControlCycle(sensors);
+
+    EXPECT_EQ(control.getControlData().currentState, ECUState::OPERATIONAL);
+    EXPECT_EQ(control.getControlData().cycleCount, 2);
+}
+
 
 // Critical Conditions Block
 TEST_F(ControlECUTest, oilAboveMaxSensorsTest){
