@@ -24,6 +24,7 @@ public:
     double getMin() const;
     double getMax() const;
     unsigned int getMissedCycles() const;
+    unsigned int getMaxMissedCycles() const;
     SignalState getState() const;
 
 private:

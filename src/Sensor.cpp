@@ -54,6 +54,10 @@ unsigned int Sensor::getMissedCycles() const {
     return missedCycles;
 }
 
+unsigned int Sensor::getMaxMissedCycles() const {
+    return maxMissedCycles;
+}
+
 SignalState Sensor::getState() const {
     return state;
 }
