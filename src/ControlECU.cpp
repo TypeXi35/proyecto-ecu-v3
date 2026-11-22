@@ -96,7 +96,7 @@ ECUState ControlECU::generalHealthCheck()
     }
     if (isIncoherent())
     {
-        controlData.faultCode = FaultCode::INCOHERENT_SIGNALS;
+
         return ECUState::SAFE_STATE;
     }
     controlData.faultCode = FaultCode::NONE;
@@ -166,16 +166,22 @@ bool ControlECU::isDegraded()
     return nonCriticalProblem || criticalStale;
 }
 
-bool ControlECU::isIncoherent() const
+bool ControlECU::isIncoherent()
 {
     if (controlData.sensors.throttle.getValue() > HIGH_THROTTLE && controlData.sensors.rpm.getValue() < MIN_RPM_UNDER_LOAD)
     {
+        controlData.faultCode = FaultCode::INCOHERENT_SIGNALS;
         return true;
     }
     double expectedSpeed = (controlData.sensors.rpm.getValue() - IDLE_RPM -
                             RPM_PER_THROTTLE * controlData.sensors.throttle.getValue()) /
                            RPM_PER_KMH;
-    return std::abs(controlData.sensors.speed.getValue() - expectedSpeed) > SPEED_TOLERANCE;
+    if (std::abs(controlData.sensors.speed.getValue() - expectedSpeed) > SPEED_TOLERANCE)
+    {
+        controlData.faultCode = FaultCode::INCOHERENT_SIGNALS;
+        return true;
+    }
+    return false;
 }
 
 void ControlECU::stateTransition(ECUState nextState)

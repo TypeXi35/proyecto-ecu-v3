@@ -28,6 +28,6 @@ private:
     static bool isOutOfLimits(const MonitoredSensor &monitored);
     bool hasCriticalFault();
     bool isDegraded();
-    bool isIncoherent() const;
+    bool isIncoherent();
     void stateTransition(ECUState nextState);
 };
