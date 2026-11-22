@@ -20,6 +20,7 @@ struct SensorInfo {
 struct LogRecord {
     unsigned int cycleCount{};
     ECUState     state{};
+    FaultCode    faultCode{};
     SensorInfo   speed{};
     SensorInfo   rpm{};
     SensorInfo   temperature{};

@@ -23,11 +23,11 @@ public:
 private:
     void controlDataUpdate();
     void loadSensors(const std::vector<Sensor> &sensors);
-    ECUState generalHealthCheck() const;
+    ECUState generalHealthCheck();
     static bool isUnhealthy(const Sensor &sensor);
     static bool isOutOfLimits(const MonitoredSensor &monitored);
-    bool hasCriticalFault() const;
-    bool isDegraded() const;
+    bool hasCriticalFault();
+    bool isDegraded();
     bool isIncoherent() const;
     void stateTransition(ECUState nextState);
 };

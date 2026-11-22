@@ -234,6 +234,42 @@ namespace
         };
     }
 
+    // Healthy, except one signal that didn't arrive (Control leaves it NOT_AVAILABLE)
+    std::vector<Sensor> sensorsWithout(SignalId missing)
+    {
+        auto sensors = healthySensors();
+        std::erase_if(sensors, [missing](const Sensor &sensor) { return sensor.getId() == missing; });
+        return sensors;
+    }
+
+    // Healthy, except oil pressure missed one cycle (still VALID, but stale)
+    std::vector<Sensor> staleOilSensors()
+    {
+        auto sensors = healthySensors();
+        for (Sensor &sensor : sensors)
+        {
+            if (sensor.getId() == SignalId::OIL_PRESSURE)
+            {
+                sensor.registerMissedCycle();
+            }
+        }
+        return sensors;
+    }
+
+    // Healthy, except speed doesn't match rpm and throttle
+    std::vector<Sensor> incoherentSensors()
+    {
+        auto sensors = healthySensors();
+        for (Sensor &sensor : sensors)
+        {
+            if (sensor.getId() == SignalId::SPEED)
+            {
+                sensor.update(INCOHERENT_SPEED);
+            }
+        }
+        return sensors;
+    }
+
     // Below the setup functions, because reachOperational() uses healthySensors()
     class ControlECUTest : public testing::Test
     {
@@ -253,6 +289,11 @@ namespace
 TEST_F(ControlECUTest, StartsInInit)
 {
     EXPECT_EQ(data.currentState, ECUState::INIT);
+}
+
+TEST_F(ControlECUTest, StartsWithNoFault)
+{
+    EXPECT_EQ(data.faultCode, FaultCode::NONE);
 }
 
 TEST_F(ControlECUTest, StartsCycleAt0)
@@ -293,6 +334,7 @@ TEST_F(ControlECUTest, HealthySensorsBecomeOperationalAfterSelfTest)
 
     EXPECT_EQ(control.getControlData().currentState, ECUState::OPERATIONAL);
     EXPECT_EQ(control.getControlData().cycleCount, 2);
+    EXPECT_EQ(control.getControlData().faultCode, FaultCode::NONE);
 }
 
 
@@ -301,12 +343,14 @@ TEST_F(ControlECUTest, oilAboveMaxSensorsTest){
     control.runControlCycle(oilAboveMaxSensors());
     control.runControlCycle(oilAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::CRITICAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, oilBelowMaxSensorsTest){
     control.runControlCycle(oilAboveMaxSensors());
     control.runControlCycle(oilAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::CRITICAL_OUT_OF_LIMITS);
 }
 
 
@@ -314,18 +358,28 @@ TEST_F(ControlECUTest, temperatureAboveMaxSensorsTest){
     reachOperational();
     control.runControlCycle(temperatureAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::CRITICAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, temperatureBelowMinSensorsTest){
     reachOperational();
     control.runControlCycle(temperatureBelowMinSensors());
     EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::CRITICAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, CriticalConditionShortCircuitTest){
     reachOperational();
     control.runControlCycle(criticalAndDegradedSensors());
     EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::CRITICAL_OUT_OF_LIMITS);
+}
+
+TEST_F(ControlECUTest, criticalSensorLostTest){
+    reachOperational();
+    control.runControlCycle(sensorsWithout(SignalId::OIL_PRESSURE));
+    EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::CRITICAL_SENSOR_LOST);
 }
 
 // Degraded Conditions Block
@@ -333,48 +387,70 @@ TEST_F(ControlECUTest, speedBelowMinSensorsTest){
     reachOperational();
     control.runControlCycle(speedBelowMinSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, speedAboveMaxSensorsTest){
     reachOperational();
     control.runControlCycle(speedAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, rpmBelowMinSensorsTest){
     reachOperational();
     control.runControlCycle(rpmBelowMinSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, rpmAboveMaxSensorsTest){
     reachOperational();
     control.runControlCycle(rpmAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, throttleBelowMinSensorsTest){
     reachOperational();
     control.runControlCycle(throttleBelowMinSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, throttleAboveMaxSensorsTest){
     reachOperational();
     control.runControlCycle(throttleAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, batteryBelowMinSensorsTest){
     reachOperational();
     control.runControlCycle(batteryBelowMinSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
 }
 
 TEST_F(ControlECUTest, batteryAboveMaxSensorsTest){
     reachOperational();
     control.runControlCycle(batteryAboveMaxSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
+}
+
+TEST_F(ControlECUTest, nonCriticalSensorLostTest){
+    reachOperational();
+    control.runControlCycle(sensorsWithout(SignalId::SPEED));
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SENSOR_DEGRADED);
+}
+
+TEST_F(ControlECUTest, criticalSensorStaleTest){
+    reachOperational();
+    control.runControlCycle(staleOilSensors());
+    EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SENSOR_DEGRADED);
 }
 
 // The degraded check runs before the coherence check, so it wins
@@ -382,4 +458,24 @@ TEST_F(ControlECUTest, DegradedConditionShortCircuitTest){
     reachOperational();
     control.runControlCycle(degradedAndIncoherentSensors());
     EXPECT_EQ(data.currentState, ECUState::DEGRADED);
+    EXPECT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
+}
+
+// Incoherent Conditions Block
+TEST_F(ControlECUTest, incoherentSignalsTest){
+    reachOperational();
+    control.runControlCycle(incoherentSensors());
+    EXPECT_EQ(data.currentState, ECUState::SAFE_STATE);
+    EXPECT_EQ(data.faultCode, FaultCode::INCOHERENT_SIGNALS);
+}
+
+// Once the problem goes away, the fault code goes back to NONE
+TEST_F(ControlECUTest, faultClearsWhenSensorsRecoverTest){
+    reachOperational();
+    control.runControlCycle(batteryBelowMinSensors());
+    ASSERT_EQ(data.faultCode, FaultCode::SIGNAL_OUT_OF_LIMITS);
+
+    control.runControlCycle(healthySensors());
+    EXPECT_EQ(data.currentState, ECUState::OPERATIONAL);
+    EXPECT_EQ(data.faultCode, FaultCode::NONE);
 }

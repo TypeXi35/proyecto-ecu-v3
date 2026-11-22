@@ -84,7 +84,7 @@ bool ControlECU::isUnhealthy(const Sensor &sensor)
     return sensor.getState() != SignalState::VALID || sensor.getMissedCycles() > 0;
 }
 
-ECUState ControlECU::generalHealthCheck() const
+ECUState ControlECU::generalHealthCheck()
 {
     if (hasCriticalFault())
     {
@@ -96,8 +96,10 @@ ECUState ControlECU::generalHealthCheck() const
     }
     if (isIncoherent())
     {
+        controlData.faultCode = FaultCode::INCOHERENT_SIGNALS;
         return ECUState::SAFE_STATE;
     }
+    controlData.faultCode = FaultCode::NONE;
     return ECUState::OPERATIONAL;
 }
 
@@ -107,27 +109,59 @@ bool ControlECU::isOutOfLimits(const MonitoredSensor &monitored)
     return value < monitored.operatingMin || value > monitored.operatingMax;
 }
 
-bool ControlECU::hasCriticalFault() const
+bool ControlECU::hasCriticalFault()
 {
     return std::any_of(monitoredSensors.begin(), monitoredSensors.end(),
-                       [](const MonitoredSensor &monitored)
+                       [this](const MonitoredSensor &monitored)
                        {
-                           return monitored.criticality == Criticality::CRITICAL && (monitored.sensor.getState() != SignalState::VALID ||
-                                                                                     isOutOfLimits(monitored));
+                           if (monitored.criticality != Criticality::CRITICAL)
+                           {
+                               return false;
+                           }
+                           if (monitored.sensor.getState() == SignalState::NOT_AVAILABLE)
+                           {
+                               controlData.faultCode = FaultCode::CRITICAL_SENSOR_LOST;
+                               return true;
+                           }
+                           if (monitored.sensor.getState() != SignalState::VALID || isOutOfLimits(monitored))
+                           {
+                               controlData.faultCode = FaultCode::CRITICAL_OUT_OF_LIMITS;
+                               return true;
+                           }
+                           return false;
                        });
 }
 
-bool ControlECU::isDegraded() const
+bool ControlECU::isDegraded()
 {
     const bool nonCriticalProblem = std::any_of(monitoredSensors.begin(), monitoredSensors.end(),
-                                                [](const MonitoredSensor &monitored)
+                                                [this](const MonitoredSensor &monitored)
                                                 {
-                                                    return monitored.criticality == Criticality::NON_CRITICAL && (isUnhealthy(monitored.sensor) || isOutOfLimits(monitored));
+                                                    if (monitored.criticality != Criticality::NON_CRITICAL)
+                                                    {
+                                                        return false;
+                                                    }
+                                                    if (monitored.sensor.getState() == SignalState::OUT_OF_RANGE || isOutOfLimits(monitored))
+                                                    {
+                                                        controlData.faultCode = FaultCode::SIGNAL_OUT_OF_LIMITS;
+                                                        return true;
+                                                    }
+                                                    if (isUnhealthy(monitored.sensor))
+                                                    {
+                                                        controlData.faultCode = FaultCode::SENSOR_DEGRADED;
+                                                        return true;
+                                                    }
+                                                    return false;
                                                 });
     const bool criticalStale = std::any_of(monitoredSensors.begin(), monitoredSensors.end(),
-                                           [](const MonitoredSensor &monitored)
+                                           [this](const MonitoredSensor &monitored)
                                            {
-                                               return monitored.criticality == Criticality::CRITICAL && monitored.sensor.getMissedCycles() > 0;
+                                               if (monitored.criticality == Criticality::CRITICAL && monitored.sensor.getMissedCycles() > 0)
+                                               {
+                                                   controlData.faultCode = FaultCode::SENSOR_DEGRADED;
+                                                   return true;
+                                               }
+                                               return false;
                                            });
     return nonCriticalProblem || criticalStale;
 }

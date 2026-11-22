@@ -18,6 +18,7 @@ void Logger::updateData(const ECUData& ecu)
 {
     current.cycleCount     = ecu.cycleCount;
     current.state          = ecu.currentState;
+    current.faultCode      = ecu.faultCode;
     current.speed          = toInfo(ecu.sensors.speed);
     current.rpm            = toInfo(ecu.sensors.rpm);
     current.temperature    = toInfo(ecu.sensors.temperature);
