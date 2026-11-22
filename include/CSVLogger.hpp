@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -7,11 +8,8 @@
 
 class CSVLogger : public Logger{
     public:
-        using Logger::Logger;
+        explicit CSVLogger(std::filesystem::path file);
+        std::string encode() const override;
+        void appendToStorage(const std::string& entry) override;
         std::vector<LogRecord> decode() const override;
-    private:
-        void encode() override;
-        void appendToStorage() override;
-
-        std::string line;
 };

@@ -96,7 +96,6 @@ ECUState ControlECU::generalHealthCheck()
     }
     if (isIncoherent())
     {
-
         return ECUState::SAFE_STATE;
     }
     controlData.faultCode = FaultCode::NONE;

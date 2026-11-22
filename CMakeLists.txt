@@ -34,13 +34,38 @@ if (NOT ftxui_FOUND)
 endif()
 ###
 
+### RapidCSV (https://github.com/d99kris/rapidcsv) - header-only CSV parser
+FetchContent_Declare(rapidcsv
+    GIT_REPOSITORY https://github.com/d99kris/rapidcsv.git
+    GIT_TAG        v9.09
+    GIT_SHALLOW    TRUE
+    EXCLUDE_FROM_ALL
+)
+set(RAPIDCSV_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(rapidcsv)
+###
+
+### dotenv-cpp (https://github.com/laserpants/dotenv-cpp) - header-only .env loader
+# No release tags upstream, so it is pinned to a commit.
+FetchContent_Declare(dotenv
+    GIT_REPOSITORY https://github.com/laserpants/dotenv-cpp.git
+    GIT_TAG        9275210b8abf1a551fb81e0ba45866286d764acd
+    EXCLUDE_FROM_ALL
+)
+set(BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(dotenv)
+###
+
 add_library(
     ecu_core
 
     src/BrailleCanvas.cpp
     src/ControlECU.cpp
+    src/CSVLogger.cpp
     src/Dashboard.cpp
     src/GatewayECU.cpp
+    src/Logger.cpp
     src/Sensor.cpp
     src/VehicleSimulator.cpp
 )
@@ -49,6 +74,7 @@ target_link_libraries(
     ftxui::screen
     ftxui::dom
     ftxui::component
+    rapidcsv
 )
 
 target_include_directories(
@@ -95,6 +121,7 @@ target_link_libraries(
     PRIVATE
 
     ecu_core
+    dotenv
 )
 
 # ---------------- Configuracion de GoogleTest ----------------

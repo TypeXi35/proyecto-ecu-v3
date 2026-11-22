@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -38,10 +39,16 @@ class Logger {
 
         void operator()(const ECUData& ecu) {
             updateData(ecu);
-            encode();
-            appendToStorage();
+            appendToStorage(encode());
         }
 
+        // An entry is the encoded form of one record. std::string is used as a byte
+        // buffer: it may be text (CSV) or raw bytes, including '\0' (e.g. binary/encrypted).
+
+        // Turns the current record into one entry (no side effects).
+        virtual std::string encode() const = 0;
+        // Writes an already-encoded entry; does not depend on encode() having run.
+        virtual void appendToStorage(const std::string& entry) = 0;
         virtual std::vector<LogRecord> decode() const = 0;
 
     protected:
@@ -50,8 +57,6 @@ class Logger {
 
     private:
         void updateData(const ECUData& ecu);
-        virtual void encode() = 0;
-        virtual void appendToStorage() = 0;
 
         LogRecord current{};
 };
