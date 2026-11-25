@@ -197,3 +197,22 @@ target_link_libraries(
 
 # Registrar las pruebas de GatewayECU en CTest.
 gtest_discover_tests(gateway_test)
+
+# ---------------- CSVLogger Google Test ----------------
+
+# Ejecutable de pruebas del CSVLogger.
+add_executable(
+    csvLogger_test
+    tests/csvLogger_test.cpp
+)
+
+# Vincula el proyecto y las bibliotecas de Google Test.
+target_link_libraries(
+    csvLogger_test
+    PRIVATE
+    ecu_core
+    GTest::gtest_main
+)
+
+# Registrar las pruebas del CSVLogger en CTest.
+gtest_discover_tests(csvLogger_test)
